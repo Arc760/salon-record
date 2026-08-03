@@ -1,69 +1,157 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+
+type Language = "zh" | "en";
+
+const translations = {
+  zh: {
+    appName: "美甲店经营账本",
+    englishName: "Salon Record",
+    greeting: "晚上好",
+    sales: "今日营业额",
+    expenses: "今日支出",
+    employeePay: "员工工资",
+    estimatedIncome: "预计店铺收入",
+    notRecorded: "尚未记录",
+    recordToday: "记录今日账目",
+    addExpense: "添加支出",
+    employees: "员工管理",
+    reports: "查看报表",
+    status: "今天还没有完成记账",
+  },
+  en: {
+    appName: "Salon Record",
+    englishName: "美甲店经营账本",
+    greeting: "Good evening",
+    sales: "Today’s Sales",
+    expenses: "Today’s Expenses",
+    employeePay: "Employee Pay",
+    estimatedIncome: "Estimated Income",
+    notRecorded: "Not recorded",
+    recordToday: "Record Today",
+    addExpense: "Add Expense",
+    employees: "Employees",
+    reports: "Reports",
+    status: "Today’s report is not completed",
+  },
+};
 
 export default function Home() {
+  const [language, setLanguage] = useState<Language>("zh");
+  const text = translations[language];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="min-h-screen bg-gray-100">
+      <div className="mx-auto min-h-screen max-w-md bg-white px-5 pb-10 pt-6">
+        <header className="mb-8 flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {text.appName}
+            </h1>
+
+            <p className="mt-1 text-sm text-gray-500">
+              {text.englishName}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              setLanguage(language === "zh" ? "en" : "zh")
+            }
+            className="rounded-full border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700"
+          >
+            {language === "zh" ? "English" : "中文"}
+          </button>
+        </header>
+
+        <section className="mb-6">
+          <p className="text-lg font-semibold text-gray-900">
+            {text.greeting}
+          </p>
+
+          <p className="mt-1 text-sm text-gray-500">
+            August 3, 2026
+          </p>
+        </section>
+
+        <section className="mb-6 grid grid-cols-2 gap-3">
+          <SummaryCard
+            title={text.sales}
+            value={text.notRecorded}
+          />
+
+          <SummaryCard
+            title={text.expenses}
+            value={text.notRecorded}
+          />
+
+          <SummaryCard
+            title={text.employeePay}
+            value={text.notRecorded}
+          />
+
+          <SummaryCard
+            title={text.estimatedIncome}
+            value={text.notRecorded}
+          />
+        </section>
+
+        <div className="mb-6 rounded-2xl bg-amber-50 p-4">
+          <p className="text-sm font-medium text-amber-900">
+            {text.status}
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+
+        <section className="space-y-3">
+          <ActionButton label={text.recordToday} primary />
+          <ActionButton label={text.addExpense} />
+          <ActionButton label={text.employees} />
+          <ActionButton label={text.reports} />
+        </section>
+      </div>
+    </main>
+  );
+}
+
+function SummaryCard({
+  title,
+  value,
+}: {
+  title: string;
+  value: string;
+}) {
+  return (
+    <article className="rounded-2xl border border-gray-200 p-4">
+      <p className="min-h-10 text-sm text-gray-500">
+        {title}
+      </p>
+
+      <p className="mt-3 text-lg font-bold text-gray-900">
+        {value}
+      </p>
+    </article>
+  );
+}
+
+function ActionButton({
+  label,
+  primary = false,
+}: {
+  label: string;
+  primary?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      className={
+        primary
+          ? "min-h-14 w-full rounded-2xl bg-gray-900 px-5 text-base font-semibold text-white"
+          : "min-h-14 w-full rounded-2xl border border-gray-300 bg-white px-5 text-left text-base font-semibold text-gray-800"
+      }
+    >
+      {label}
+    </button>
   );
 }
