@@ -39,7 +39,7 @@ type OrderExtra = {
   commission: number;
 };
 
-type PaymentMethod = "card" | "cash" | "gift-card";
+type PaymentMethod = "card" | "cash" | "gift-card" | "split";
 
 type EmployeeOrder = {
   id: string;
@@ -51,6 +51,9 @@ type EmployeeOrder = {
   extras: OrderExtra[];
   paymentMethod?: PaymentMethod;
   giftCardAmount?: number;
+  discountAmount?: number;
+  cashAmount?: number;
+  cardAmount?: number;
 };
 
 type GiftCardSale = {
@@ -1346,11 +1349,17 @@ function getLegacyCommissionForEmployee(
 }
 
 function getOrderRevenue(order: EmployeeOrder) {
+  if ((order.paymentMethod ?? "card") === "split") {
+    return (order.cashAmount ?? 0) + (order.cardAmount ?? 0);
+  }
+
   const grossAmount =
-    order.price + (order.extras ?? []).reduce((sum, extra) => sum + extra.price, 0);
+    order.price +
+    (order.extras ?? []).reduce((sum, extra) => sum + extra.price, 0) -
+    (order.discountAmount ?? 0);
 
   if ((order.paymentMethod ?? "card") !== "gift-card") {
-    return grossAmount;
+    return Math.max(0, grossAmount);
   }
 
   return Math.max(0, grossAmount - (order.giftCardAmount ?? 0));

@@ -42,7 +42,7 @@ type OrderExtra = {
   commission: number;
 };
 
-type PaymentMethod = "card" | "cash" | "gift-card";
+type PaymentMethod = "card" | "cash" | "gift-card" | "split";
 
 type EmployeeOrder = {
   id: string;
@@ -55,6 +55,9 @@ type EmployeeOrder = {
   extras: OrderExtra[];
   paymentMethod?: PaymentMethod;
   giftCardAmount?: number;
+  discountAmount?: number;
+  cashAmount?: number;
+  cardAmount?: number;
   createdAt: string;
 };
 
@@ -114,7 +117,7 @@ const text = {
     shopIncome: "店铺收入",
     save: "保存账目",
     saved: "账目已保存。",
-    invalidOrder: "请选择员工并输入服务名称、价钱和提成。",
+    invalidOrder: "请选择员工，并输入服务或额外设施。",
     delete: "删除",
     ordersEmpty: "还没有录入订单",
     legacyCommission: "旧版手动提成",
@@ -151,7 +154,7 @@ const text = {
     shopIncome: "Shop Income",
     save: "Save Record",
     saved: "Record saved.",
-    invalidOrder: "Choose an employee and enter service name, price, and commission.",
+    invalidOrder: "Choose an employee and enter a service or extra.",
     delete: "Delete",
     ordersEmpty: "No orders entered yet",
     legacyCommission: "Legacy manual commission",
@@ -177,8 +180,11 @@ export default function DailyRecordPage() {
   const [serviceName, setServiceName] = useState("");
   const [price, setPrice] = useState("");
   const [commission, setCommission] = useState("");
+  const [discountAmount, setDiscountAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
   const [giftCardAmount, setGiftCardAmount] = useState("");
+  const [splitCashAmount, setSplitCashAmount] = useState("");
+  const [splitCardAmount, setSplitCardAmount] = useState("");
   const [giftCardSaleAmount, setGiftCardSaleAmount] = useState("");
   const [giftCardSalePaymentMethod, setGiftCardSalePaymentMethod] =
     useState<"card" | "cash">("card");
@@ -188,6 +194,7 @@ export default function DailyRecordPage() {
   const [legacyCommissions, setLegacyCommissions] = useState<CommissionEntry[]>([]);
   const [showRevenueModal, setShowRevenueModal] = useState(false);
   const [showOrderForm, setShowOrderForm] = useState(false);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [showGiftCardForm, setShowGiftCardForm] = useState(false);
   const paymentLabels = {
     paymentMethod: language === "en" ? "Payment Method" : "支付方式",
@@ -200,6 +207,16 @@ export default function DailyRecordPage() {
       language === "en" ? "Record Gift Card" : "记录礼品卡",
     cashIncome: language === "en" ? "Cash Income" : "现金收入",
     cardIncome: language === "en" ? "Card Income" : "刷卡收入",
+  };
+
+  const orderLabels = {
+    split: language === "en" ? "Split" : "拆分",
+    splitCash: language === "en" ? "Cash Amount" : "现金金额",
+    splitCard: language === "en" ? "Card Amount" : "刷卡金额",
+    discount: language === "en" ? "Discount" : "优惠",
+    saveOrder: language === "en" ? "Save Order" : "保存订单",
+    edit: language === "en" ? "Edit" : "编辑",
+    noCommission: language === "en" ? "No commission" : "无提成",
   };
 
   useEffect(() => {
@@ -287,7 +304,7 @@ export default function DailyRecordPage() {
 
     if (service) {
       setPrice(String(service.price));
-      setCommission(String(service.commission));
+      setCommission(service.commission === 0 ? "" : String(service.commission));
     }
   }
 
@@ -299,21 +316,73 @@ export default function DailyRecordPage() {
 
     if (extra) {
       setExtraPrice(String(extra.price));
-      setExtraCommission(String(extra.commission));
+      setExtraCommission(extra.commission === 0 ? "" : String(extra.commission));
     }
+  }
+
+  function resetOrderForm() {
+    setEditingOrderId(null);
+    setServiceName("");
+    setPrice("");
+    setCommission("");
+    setExtraName("");
+    setExtraPrice("");
+    setExtraCommission("");
+    setDiscountAmount("");
+    setPaymentMethod("card");
+    setGiftCardAmount("");
+    setSplitCashAmount("");
+    setSplitCardAmount("");
+    setShowOrderForm(false);
+  }
+
+  function openAddOrderForm() {
+    resetOrderForm();
+    setShowOrderForm(true);
+  }
+
+  function openEditOrder(order: EmployeeOrder) {
+    setEditingOrderId(order.id);
+    setEmployeeId(order.employeeId);
+    setServiceName(order.serviceName);
+    setPrice(order.price === 0 ? "" : String(order.price));
+    setCommission(order.commission === 0 ? "" : String(order.commission));
+    const firstExtra = order.extras[0];
+    setExtraName(firstExtra?.name ?? "");
+    setExtraPrice(firstExtra && firstExtra.price > 0 ? String(firstExtra.price) : "");
+    setExtraCommission(
+      firstExtra && firstExtra.commission > 0 ? String(firstExtra.commission) : "",
+    );
+    setDiscountAmount(
+      order.discountAmount && order.discountAmount > 0
+        ? String(order.discountAmount)
+        : "",
+    );
+    setPaymentMethod(order.paymentMethod ?? "card");
+    setGiftCardAmount(
+      order.giftCardAmount && order.giftCardAmount > 0
+        ? String(order.giftCardAmount)
+        : "",
+    );
+    setSplitCashAmount(
+      order.cashAmount && order.cashAmount > 0 ? String(order.cashAmount) : "",
+    );
+    setSplitCardAmount(
+      order.cardAmount && order.cardAmount > 0 ? String(order.cardAmount) : "",
+    );
+    setShowRevenueModal(false);
+    setShowOrderForm(true);
   }
 
   function addOrder() {
     const employee = employees.find((item) => item.id === employeeId);
-    const numericPrice = Number(price);
-    const numericCommission = Number(commission);
+    const numericPrice = toAmount(price);
+    const numericCommission = toAmount(commission);
+    const hasService = serviceName.trim() || numericPrice > 0;
+    const hasExtra =
+      extraName.trim() || toAmount(extraPrice) > 0 || toAmount(extraCommission) > 0;
 
-    if (
-      !employee ||
-      !serviceName.trim() ||
-      Number.isNaN(numericPrice) ||
-      Number.isNaN(numericCommission)
-    ) {
+    if (!employee || (!hasService && !hasExtra)) {
       window.alert(t.invalidOrder);
       return;
     }
@@ -322,7 +391,7 @@ export default function DailyRecordPage() {
       (item) => item.name.toLowerCase() === serviceName.trim().toLowerCase(),
     );
     const extra =
-      extraName.trim() || toAmount(extraPrice) > 0 || toAmount(extraCommission) > 0
+      hasExtra
         ? [
             {
               id: crypto.randomUUID(),
@@ -332,33 +401,36 @@ export default function DailyRecordPage() {
             },
           ]
         : [];
+    const nextOrder: EmployeeOrder = {
+      id: editingOrderId ?? crypto.randomUUID(),
+      employeeId: employee.id,
+      employeeName: employee.name,
+      serviceId: matchedService?.id,
+      serviceName: serviceName.trim() || extraName.trim() || t.extraName,
+      price: Math.max(0, numericPrice),
+      commission: Math.max(0, numericCommission),
+      extras: extra,
+      paymentMethod,
+      giftCardAmount:
+        paymentMethod === "gift-card" ? Math.max(0, toAmount(giftCardAmount)) : 0,
+      discountAmount: Math.max(0, toAmount(discountAmount)),
+      cashAmount:
+        paymentMethod === "split" ? Math.max(0, toAmount(splitCashAmount)) : 0,
+      cardAmount:
+        paymentMethod === "split" ? Math.max(0, toAmount(splitCardAmount)) : 0,
+      createdAt:
+        orders.find((order) => order.id === editingOrderId)?.createdAt ??
+        new Date().toISOString(),
+    };
 
-    setOrders((currentOrders) => [
-      ...currentOrders,
-      {
-        id: crypto.randomUUID(),
-        employeeId: employee.id,
-        employeeName: employee.name,
-        serviceId: matchedService?.id,
-        serviceName: serviceName.trim(),
-        price: Math.max(0, numericPrice),
-        commission: Math.max(0, numericCommission),
-        extras: extra,
-        paymentMethod,
-        giftCardAmount:
-          paymentMethod === "gift-card" ? Math.max(0, toAmount(giftCardAmount)) : 0,
-        createdAt: new Date().toISOString(),
-      },
-    ]);
-    setServiceName("");
-    setPrice("");
-    setCommission("");
-    setExtraName("");
-    setExtraPrice("");
-    setExtraCommission("");
-    setPaymentMethod("card");
-    setGiftCardAmount("");
-    setShowOrderForm(false);
+    setOrders((currentOrders) =>
+      editingOrderId
+        ? currentOrders.map((order) =>
+            order.id === editingOrderId ? nextOrder : order,
+          )
+        : [...currentOrders, nextOrder],
+    );
+    resetOrderForm();
   }
 
   function addGiftCardSale() {
@@ -509,7 +581,7 @@ export default function DailyRecordPage() {
 
                 <button
                   type="button"
-                  onClick={() => setShowOrderForm(true)}
+                  onClick={openAddOrderForm}
                   className="min-h-11 w-full rounded-xl border border-gray-300 px-4 text-sm font-semibold text-gray-700"
                 >
                   {t.addOrder}
@@ -544,6 +616,7 @@ export default function DailyRecordPage() {
                         id="service-commission"
                         value={commission}
                         onChange={setCommission}
+                        placeholder={orderLabels.noCommission}
                       />
                     </FormField>
                   </div>
@@ -575,18 +648,27 @@ export default function DailyRecordPage() {
                         id="extra-commission"
                         value={extraCommission}
                         onChange={setExtraCommission}
+                        placeholder={orderLabels.noCommission}
                       />
                     </FormField>
                   </div>
+                  <FormField label={orderLabels.discount} htmlFor="discount-amount">
+                    <MoneyInput
+                      id="discount-amount"
+                      value={discountAmount}
+                      onChange={setDiscountAmount}
+                    />
+                  </FormField>
                   <div>
                     <p className="mb-2 text-sm font-semibold text-gray-800">
                       {paymentLabels.paymentMethod}
                     </p>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                       {[
                         ["card", paymentLabels.card],
                         ["cash", paymentLabels.cash],
                         ["gift-card", paymentLabels.giftCard],
+                        ["split", orderLabels.split],
                       ].map(([value, label]) => (
                         <button
                           key={value}
@@ -612,16 +694,34 @@ export default function DailyRecordPage() {
                       />
                     </FormField>
                   )}
+                  {paymentMethod === "split" && (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <FormField label={orderLabels.splitCash} htmlFor="split-cash">
+                        <MoneyInput
+                          id="split-cash"
+                          value={splitCashAmount}
+                          onChange={setSplitCashAmount}
+                        />
+                      </FormField>
+                      <FormField label={orderLabels.splitCard} htmlFor="split-card">
+                        <MoneyInput
+                          id="split-card"
+                          value={splitCardAmount}
+                          onChange={setSplitCardAmount}
+                        />
+                      </FormField>
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={addOrder}
                     className="min-h-11 w-full rounded-xl border border-gray-300 px-4 text-sm font-semibold text-gray-700"
                   >
-                    {t.addOrder}
+                    {editingOrderId ? orderLabels.saveOrder : t.addOrder}
                   </button>
                   <button
                     type="button"
-                    onClick={() => setShowOrderForm(false)}
+                    onClick={resetOrderForm}
                     className="min-h-11 w-full rounded-xl border border-gray-300 px-4 text-sm font-semibold text-gray-700"
                   >
                     {t.close}
@@ -793,6 +893,7 @@ export default function DailyRecordPage() {
             t={t}
             employeeName={selectedEmployee.name}
             orders={selectedEmployeeOrders}
+            onEditOrder={openEditOrder}
             onDeleteOrder={(orderId) =>
               setOrders((current) => current.filter((item) => item.id !== orderId))
             }
@@ -809,10 +910,12 @@ function MoneyInput({
   id,
   value,
   onChange,
+  placeholder = "0.00",
 }: {
   id: string;
   value: string;
   onChange: (value: string) => void;
+  placeholder?: string;
 }) {
   return (
     <div className="relative">
@@ -827,7 +930,7 @@ function MoneyInput({
         value={value}
         onKeyDown={blockNonNumericKeys}
         onChange={(event) => onChange(cleanNumberInput(event.target.value))}
-        placeholder="0.00"
+        placeholder={placeholder}
         className={`${inputClassName} pl-8`}
       />
     </div>
@@ -900,12 +1003,14 @@ function OrderRevenueModal({
   t,
   employeeName,
   orders,
+  onEditOrder,
   onDeleteOrder,
   onClose,
 }: {
   t: (typeof text)["zh"];
   employeeName: string;
   orders: EmployeeOrder[];
+  onEditOrder: (order: EmployeeOrder) => void;
   onDeleteOrder: (orderId: string) => void;
   onClose: () => void;
 }) {
@@ -960,6 +1065,12 @@ function OrderRevenueModal({
                       {formatCurrency(extra.commission)}
                     </p>
                   ))}
+                  {(order.discountAmount ?? 0) > 0 && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      {t.back.includes("Back") ? "Discount" : "优惠"}:{" "}
+                      -{formatCurrency(order.discountAmount ?? 0)}
+                    </p>
+                  )}
                   <p className="mt-2 text-sm font-semibold text-gray-900">
                     {t.sales}: {formatCurrency(getOrderRevenue(order))}
                   </p>
@@ -967,13 +1078,22 @@ function OrderRevenueModal({
                     {paymentLabel(order.paymentMethod ?? "card", t)} /{" "}
                     {formatCurrency(getOrderPaidAmount(order))}
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => onDeleteOrder(order.id)}
-                    className="mt-3 text-sm font-semibold text-red-600"
-                  >
-                    {t.delete}
-                  </button>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onEditOrder(order)}
+                      className="min-h-10 rounded-xl border border-gray-300 px-3 text-sm font-semibold text-gray-700"
+                    >
+                      {t.back.includes("Back") ? "Edit" : "编辑"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteOrder(order.id)}
+                      className="min-h-10 rounded-xl border border-red-200 px-3 text-sm font-semibold text-red-600"
+                    >
+                      {t.delete}
+                    </button>
+                  </div>
                 </article>
               ))}
             </div>
@@ -1013,7 +1133,14 @@ function getOrderGrossAmount(order: EmployeeOrder) {
 }
 
 function getOrderPaidAmount(order: EmployeeOrder) {
-  const grossAmount = getOrderGrossAmount(order);
+  if ((order.paymentMethod ?? "card") === "split") {
+    return (order.cashAmount ?? 0) + (order.cardAmount ?? 0);
+  }
+
+  const grossAmount = Math.max(
+    0,
+    getOrderGrossAmount(order) - (order.discountAmount ?? 0),
+  );
 
   if ((order.paymentMethod ?? "card") !== "gift-card") {
     return grossAmount;
@@ -1025,16 +1152,36 @@ function getOrderPaidAmount(order: EmployeeOrder) {
 function getPaymentTotals(orders: EmployeeOrder[], giftCardSales: GiftCardSale[]) {
   return {
     cashSales:
-      orders
-        .filter((order) => (order.paymentMethod ?? "card") === "cash")
-        .reduce((sum, order) => sum + getOrderPaidAmount(order), 0) +
+      orders.reduce((sum, order) => {
+        const method = order.paymentMethod ?? "card";
+
+        if (method === "cash") {
+          return sum + getOrderPaidAmount(order);
+        }
+
+        if (method === "split") {
+          return sum + (order.cashAmount ?? 0);
+        }
+
+        return sum;
+      }, 0) +
       giftCardSales
         .filter((sale) => sale.paymentMethod === "cash")
         .reduce((sum, sale) => sum + sale.amount, 0),
     cardSales:
-      orders
-        .filter((order) => (order.paymentMethod ?? "card") !== "cash")
-        .reduce((sum, order) => sum + getOrderPaidAmount(order), 0) +
+      orders.reduce((sum, order) => {
+        const method = order.paymentMethod ?? "card";
+
+        if (method === "card" || method === "gift-card") {
+          return sum + getOrderPaidAmount(order);
+        }
+
+        if (method === "split") {
+          return sum + (order.cardAmount ?? 0);
+        }
+
+        return sum;
+      }, 0) +
       giftCardSales
         .filter((sale) => sale.paymentMethod === "card")
         .reduce((sum, sale) => sum + sale.amount, 0),
@@ -1048,6 +1195,10 @@ function paymentLabel(paymentMethod: PaymentMethod, t: (typeof text)["zh"]) {
 
   if (paymentMethod === "gift-card") {
     return t.back.includes("Back") ? "Gift Card" : "礼品卡";
+  }
+
+  if (paymentMethod === "split") {
+    return t.back.includes("Back") ? "Split" : "拆分";
   }
 
   return t.back.includes("Back") ? "Card" : "刷卡";
