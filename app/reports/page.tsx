@@ -490,10 +490,19 @@ function EmployeeReportView({
   t: LanguageText;
 }) {
   const [showRevenueModal, setShowRevenueModal] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [pendingStartDate, setPendingStartDate] = useState<string | null>(null);
+  const [calendarMonth, setCalendarMonth] = useState(startDate.slice(0, 7));
   const [detailModal, setDetailModal] = useState<
     "summary" | "daily" | "weekly" | null
   >(null);
   const selectedTotal = report.employeeTotals[0] ?? null;
+  const isEnglish = t.back.includes("Back");
+  const dateLabel = isEnglish ? "Date" : "日期";
+  const datePickerTitle = isEnglish ? "Select Date" : "选择日期";
+  const datePickerHint = isEnglish
+    ? "Choose one day, or choose a second day to view the range between them."
+    : "选择一个日期，或再选第二个日期查看两个日期之间的数据。";
   const closeLabel = t.back.includes("Back") ? "Close" : "关闭";
 
   useEffect(() => {
@@ -545,27 +554,24 @@ function EmployeeReportView({
           </select>
         </div>
 
-        <div className="mt-3 grid w-full min-w-0 max-w-full grid-cols-1 gap-2 overflow-hidden sm:grid-cols-2">
-          <div className="w-full min-w-0 max-w-full overflow-hidden">
-            <FormLabel htmlFor="salary-start">{t.startDate}</FormLabel>
-            <input
-              id="salary-start"
-              type="date"
-              value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
-              className={dateInputClassName}
-            />
-          </div>
-          <div className="w-full min-w-0 max-w-full overflow-hidden">
-            <FormLabel htmlFor="salary-end">{t.endDate}</FormLabel>
-            <input
-              id="salary-end"
-              type="date"
-              value={endDate}
-              onChange={(event) => setEndDate(event.target.value)}
-              className={dateInputClassName}
-            />
-          </div>
+        <div className="mt-3">
+          <p className="mb-2 text-sm font-semibold text-gray-800">{dateLabel}</p>
+          <button
+            type="button"
+            onClick={() => {
+              setPendingStartDate(null);
+              setCalendarMonth(effectiveStartDate.slice(0, 7));
+              setShowDatePicker(true);
+            }}
+            className="flex min-h-12 w-full min-w-0 max-w-full items-center justify-between gap-3 rounded-xl border border-gray-300 bg-white px-4 text-left text-base font-semibold text-gray-900"
+          >
+            <span className="min-w-0 break-words">
+              {effectiveStartDate === effectiveEndDate
+                ? effectiveStartDate
+                : `${effectiveStartDate} ${t.to} ${effectiveEndDate}`}
+            </span>
+            <span className="shrink-0 text-sm text-gray-500">v</span>
+          </button>
         </div>
 
         <p className="mt-2 text-xs text-gray-500">
@@ -596,6 +602,42 @@ function EmployeeReportView({
           </div>
         )}
       </section>
+
+      {showDatePicker && (
+        <DateRangePickerModal
+          title={datePickerTitle}
+          hint={datePickerHint}
+          closeLabel={closeLabel}
+          month={calendarMonth}
+          startDate={startDate}
+          endDate={endDate}
+          pendingStartDate={pendingStartDate}
+          isEnglish={isEnglish}
+          onPreviousMonth={() => setCalendarMonth(shiftMonth(calendarMonth, -1))}
+          onNextMonth={() => setCalendarMonth(shiftMonth(calendarMonth, 1))}
+          onClose={() => {
+            setPendingStartDate(null);
+            setShowDatePicker(false);
+          }}
+          onPickDate={(dateKey) => {
+            if (!pendingStartDate) {
+              setPendingStartDate(dateKey);
+              setStartDate(dateKey);
+              setEndDate(dateKey);
+              return;
+            }
+
+            const nextStartDate =
+              pendingStartDate <= dateKey ? pendingStartDate : dateKey;
+            const nextEndDate =
+              pendingStartDate <= dateKey ? dateKey : pendingStartDate;
+            setStartDate(nextStartDate);
+            setEndDate(nextEndDate);
+            setPendingStartDate(null);
+            setShowDatePicker(false);
+          }}
+        />
+      )}
 
       {selectedTotal && (
         <section className="mb-3 rounded-xl border border-gray-200 p-3">
@@ -788,6 +830,113 @@ function EmployeeReportView({
         />
       )}
     </>
+  );
+}
+
+function DateRangePickerModal({
+  title,
+  hint,
+  closeLabel,
+  month,
+  startDate,
+  endDate,
+  pendingStartDate,
+  isEnglish,
+  onPreviousMonth,
+  onNextMonth,
+  onPickDate,
+  onClose,
+}: {
+  title: string;
+  hint: string;
+  closeLabel: string;
+  month: string;
+  startDate: string;
+  endDate: string;
+  pendingStartDate: string | null;
+  isEnglish: boolean;
+  onPreviousMonth: () => void;
+  onNextMonth: () => void;
+  onPickDate: (dateKey: string) => void;
+  onClose: () => void;
+}) {
+  const weekdays = isEnglish
+    ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    : ["日", "一", "二", "三", "四", "五", "六"];
+  const monthLabel = formatMonthLabel(month, isEnglish);
+  const selectedStart = pendingStartDate ?? startDate;
+  const selectedEnd = pendingStartDate ?? endDate;
+  const rangeStart = selectedStart <= selectedEnd ? selectedStart : selectedEnd;
+  const rangeEnd = selectedStart <= selectedEnd ? selectedEnd : selectedStart;
+
+  return (
+    <AppModal onClose={onClose} contentClassName="flex flex-col">
+      <div className="flex items-start justify-between gap-4 border-b border-gray-200 p-4">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">{title}</h2>
+          <p className="mt-1 text-sm text-gray-500">{hint}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="shrink-0 rounded-xl border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700"
+        >
+          {closeLabel}
+        </button>
+      </div>
+      <div className="overflow-y-auto p-4">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={onPreviousMonth}
+            className="min-h-10 rounded-xl border border-gray-300 px-4 text-sm font-semibold text-gray-700"
+          >
+            {"<"}
+          </button>
+          <p className="text-base font-bold text-gray-900">{monthLabel}</p>
+          <button
+            type="button"
+            onClick={onNextMonth}
+            className="min-h-10 rounded-xl border border-gray-300 px-4 text-sm font-semibold text-gray-700"
+          >
+            {">"}
+          </button>
+        </div>
+        <div className="grid grid-cols-7 gap-1">
+          {weekdays.map((weekday) => (
+            <div
+              key={weekday}
+              className="py-2 text-center text-xs font-semibold text-gray-500"
+            >
+              {weekday}
+            </div>
+          ))}
+          {buildCalendarCells(month).map((cell, index) =>
+            cell ? (
+              <button
+                key={cell}
+                type="button"
+                onClick={() => onPickDate(cell)}
+                className={`min-h-11 rounded-xl text-sm font-semibold ${
+                  cell === rangeStart || cell === rangeEnd
+                    ? "bg-gray-900 text-white"
+                    : cell > rangeStart && cell < rangeEnd
+                      ? "bg-gray-100 text-gray-900"
+                      : "text-gray-700"
+                }`}
+              >
+                {Number(cell.slice(8, 10))}
+              </button>
+            ) : (
+              <div key={`blank-${index}`} />
+            ),
+          )}
+        </div>
+        <p className="mt-4 rounded-xl bg-gray-50 p-3 text-sm font-semibold text-gray-800">
+          {rangeStart === rangeEnd ? rangeStart : `${rangeStart} - ${rangeEnd}`}
+        </p>
+      </div>
+    </AppModal>
   );
 }
 
@@ -994,9 +1143,6 @@ type EmployeeReport = {
 
 const inputClassName =
   "min-h-12 w-full min-w-0 max-w-full rounded-xl border border-gray-300 bg-white px-4 text-base text-gray-900 outline-none focus:border-gray-900";
-
-const dateInputClassName =
-  "block min-h-12 w-full min-w-0 max-w-full appearance-none rounded-xl border border-gray-300 bg-white px-2 text-sm text-gray-900 outline-none focus:border-gray-900 sm:px-4 sm:text-base";
 
 function buildEmployeeReport({
   employees,
@@ -1343,6 +1489,42 @@ function getDateRange(startDate: string, endDate: string) {
   }
 
   return dates;
+}
+
+function buildCalendarCells(monthKey: string) {
+  const [year, month] = monthKey.split("-").map(Number);
+  const firstDate = new Date(year, month - 1, 1, 12);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const cells: (string | null)[] = Array.from(
+    { length: firstDate.getDay() },
+    () => null,
+  );
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    cells.push(formatDateKey(new Date(year, month - 1, day, 12)));
+  }
+
+  return cells;
+}
+
+function shiftMonth(monthKey: string, offset: number) {
+  const [year, month] = monthKey.split("-").map(Number);
+  const nextDate = new Date(year, month - 1 + offset, 1, 12);
+
+  return `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(
+    2,
+    "0",
+  )}`;
+}
+
+function formatMonthLabel(monthKey: string, isEnglish: boolean) {
+  const [year, month] = monthKey.split("-").map(Number);
+  const date = new Date(year, month - 1, 1, 12);
+
+  return new Intl.DateTimeFormat(isEnglish ? "en-US" : "zh-CN", {
+    year: "numeric",
+    month: "long",
+  }).format(date);
 }
 
 function getWeekRange(dateKey: string) {
