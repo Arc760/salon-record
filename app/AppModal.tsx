@@ -41,14 +41,14 @@ export function AppModal({
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6 ${className}`}
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-3 py-5 sm:px-4 sm:py-6 ${className}`}
       role="dialog"
       aria-modal="true"
       aria-labelledby={labelledBy}
       onClick={onClose}
     >
       <div
-        className={`max-h-[88vh] w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl ${contentClassName}`}
+        className={`max-h-[88vh] w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-w-2xl lg:max-w-3xl ${contentClassName}`}
         onClick={(event) => event.stopPropagation()}
       >
         {children}

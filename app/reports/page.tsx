@@ -364,7 +364,7 @@ function ShopReportView({
           className={inputClassName}
         />
 
-        <div className="mt-3 grid grid-cols-3 gap-2">
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
           {[
             ["day", t.day],
             ["week", t.week],
@@ -442,7 +442,7 @@ function ShopReportView({
             {report.expensesByCategory.map((item) => (
               <div
                 key={item.category}
-                className="flex items-center justify-between rounded-2xl border border-gray-200 p-4"
+                className="flex flex-col gap-2 rounded-2xl border border-gray-200 p-4 sm:flex-row sm:items-center sm:justify-between"
               >
                 <span className="font-semibold text-gray-900">
                   {item.category}
@@ -849,8 +849,8 @@ function RevenueModal({
           {revenueRows.length === 0 ? (
             <EmptyState>No revenue records</EmptyState>
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-gray-200">
-              <table className="w-full text-left text-sm">
+            <div className="overflow-x-auto rounded-2xl border border-gray-200">
+              <table className="min-w-[30rem] w-full text-left text-sm">
                 <thead className="bg-gray-50 text-xs text-gray-500">
                   <tr>
                     <th className="px-3 py-3 font-semibold">Date</th>

@@ -102,7 +102,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gray-100 pb-20">
-      <div className="mx-auto flex min-h-screen max-w-md flex-col bg-white px-4 pb-24 pt-4">
+      <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col bg-white px-4 pb-24 pt-4 sm:px-6 lg:px-8">
         <header className="mb-4 flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{t.appName}</h1>
@@ -116,7 +116,7 @@ export default function Home() {
           <p className="mt-1 text-sm text-gray-500">{formattedDate}</p>
         </section>
 
-        <section className="mb-3 grid grid-cols-2 gap-2">
+        <section className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
           <SummaryCard
             title={t.sales}
             value={
@@ -153,7 +153,7 @@ export default function Home() {
           </p>
         </div>
 
-        <section className="grid grid-cols-2 gap-2">
+        <section className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <ActionButton href="/daily-record" label={t.recordToday} primary />
           <ActionButton href="/expenses" label={t.addExpense} />
         </section>

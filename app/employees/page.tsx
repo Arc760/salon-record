@@ -470,7 +470,7 @@ export default function EmployeesPage() {
 
   return (
     <main className="min-h-screen bg-gray-100 pb-20">
-      <div className="mx-auto flex min-h-screen max-w-md flex-col bg-white px-4 pb-24 pt-4">
+      <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col bg-white px-4 pb-24 pt-4 sm:px-6 lg:px-8">
         <header className="mb-4 flex items-start justify-between gap-4">
           <div>
             <Link
@@ -485,15 +485,15 @@ export default function EmployeesPage() {
           <LanguageSwitcher language={language} setLanguage={setLanguage} />
         </header>
 
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div className="grid flex-1 grid-cols-2 gap-3">
+        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="grid w-full flex-1 grid-cols-2 gap-3">
             <SummaryCard label={t.activeEmployees} value={activeEmployees.length} />
             <SummaryCard label={t.inactiveEmployees} value={inactiveEmployees.length} />
           </div>
           <button
             type="button"
             onClick={openAddForm}
-            className="min-h-11 shrink-0 rounded-xl bg-gray-900 px-3 text-sm font-semibold text-white"
+            className="min-h-11 w-full shrink-0 rounded-xl bg-gray-900 px-3 text-sm font-semibold text-white sm:w-auto"
           >
             {t.addEmployee}
           </button>
@@ -838,7 +838,7 @@ function EmployeeCard({
             {payPeriodLabel(nextScheduledSalary.payPeriod, t)}
           </p>
           <p className="mt-1 text-xs text-blue-700">{nextScheduledSalary.reason}</p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <button
               type="button"
               onClick={() => onEditScheduledSalary(employee, nextScheduledSalary)}
@@ -859,7 +859,7 @@ function EmployeeCard({
         </div>
       )}
 
-      <div className="mt-4 grid grid-cols-2 gap-2">
+      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
         <button
           type="button"
           onClick={() => onEdit(employee)}
@@ -1099,7 +1099,7 @@ function StatusBadge({ t, active }: { t: EmployeeText; active: boolean }) {
 }
 
 const inputClassName =
-  "min-h-12 w-full rounded-xl border border-gray-300 bg-white px-4 text-base text-gray-900 outline-none focus:border-gray-900";
+  "min-h-12 w-full min-w-0 max-w-full rounded-xl border border-gray-300 bg-white px-4 text-base text-gray-900 outline-none focus:border-gray-900";
 
 function migrateEmployee(employee: Partial<Employee>, t: EmployeeText): Employee {
   const basePay = typeof employee.basePay === "number" ? employee.basePay : 0;

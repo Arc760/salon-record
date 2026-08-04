@@ -343,7 +343,7 @@ export default function DailyRecordPage() {
 
   return (
     <main className="min-h-screen bg-gray-100 pb-20">
-      <div className="mx-auto flex min-h-screen max-w-md flex-col bg-white px-4 pb-24 pt-4">
+      <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col bg-white px-4 pb-24 pt-4 sm:px-6 lg:px-8">
         <header className="mb-4 flex items-start justify-between gap-4">
           <div>
             <Link
@@ -360,7 +360,7 @@ export default function DailyRecordPage() {
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <section className="rounded-xl border border-gray-200 p-3">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <FormField label={t.date} htmlFor="record-date">
                 <input
                   id="record-date"
@@ -372,7 +372,7 @@ export default function DailyRecordPage() {
               </FormField>
               <Link
                 href="/services"
-                className="mt-7 shrink-0 rounded-xl border border-gray-300 px-3 py-3 text-sm font-semibold text-gray-700"
+                className="shrink-0 rounded-xl border border-gray-300 px-3 py-3 text-center text-sm font-semibold text-gray-700"
               >
                 {t.menuLink}
               </Link>
@@ -467,7 +467,7 @@ export default function DailyRecordPage() {
                       ))}
                     </datalist>
                   </FormField>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <FormField label={t.price} htmlFor="service-price">
                       <MoneyInput id="service-price" value={price} onChange={setPrice} />
                     </FormField>
@@ -494,7 +494,7 @@ export default function DailyRecordPage() {
                       ))}
                     </datalist>
                   </FormField>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <FormField label={t.extraPrice} htmlFor="extra-price">
                       <MoneyInput
                         id="extra-price"
@@ -554,7 +554,7 @@ export default function DailyRecordPage() {
             </FormField>
           </section>
 
-          <section className="grid grid-cols-3 gap-2">
+          <section className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <SummaryCard label={t.sales} value={formatCurrency(totals.sales)} />
             <SummaryCard label={t.orderCount} value={String(totals.orderCount)} />
             <SummaryCard
@@ -763,7 +763,7 @@ function OrderRevenueModal({
 }
 
 const inputClassName =
-  "min-h-12 w-full rounded-xl border border-gray-300 bg-white px-4 text-base text-gray-900 outline-none focus:border-gray-900";
+  "min-h-12 w-full min-w-0 max-w-full rounded-xl border border-gray-300 bg-white px-4 text-base text-gray-900 outline-none focus:border-gray-900";
 
 function buildCommissionEntries(orders: EmployeeOrder[]) {
   const totals = new Map<string, CommissionEntry>();

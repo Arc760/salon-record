@@ -33,7 +33,7 @@ export function BottomNav() {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 px-3 pb-[env(safe-area-inset-bottom)] pt-2 shadow-[0_-8px_24px_rgba(0,0,0,0.08)]">
-      <div className="mx-auto grid max-w-md grid-cols-4 gap-2">
+      <div className="mx-auto grid w-full max-w-5xl grid-cols-4 gap-2">
         {navItems.map((item) => {
           const active =
             item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);

@@ -374,7 +374,7 @@ export default function ServicesPage() {
 
   return (
     <main className="min-h-screen bg-gray-100 pb-20">
-      <div className="mx-auto flex min-h-screen max-w-md flex-col bg-white px-4 pb-24 pt-4">
+      <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col bg-white px-4 pb-24 pt-4 sm:px-6 lg:px-8">
         <header className="mb-4 flex items-start justify-between gap-4">
           <div>
             <Link
@@ -395,7 +395,7 @@ export default function ServicesPage() {
             resetForm();
             setShowEditor(true);
           }}
-          className="mb-3 min-h-11 rounded-xl bg-gray-900 px-4 text-sm font-semibold text-white"
+          className="mb-3 min-h-11 rounded-xl bg-gray-900 px-4 text-sm font-semibold text-white sm:w-fit"
         >
           {t.save}
         </button>
@@ -464,7 +464,7 @@ export default function ServicesPage() {
               className={inputClassName}
             />
           </FormField>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <FormField label={t.price} htmlFor="menu-price">
               <MoneyInput id="menu-price" value={price} onChange={setPrice} />
             </FormField>
@@ -476,7 +476,7 @@ export default function ServicesPage() {
               />
             </FormField>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <button
               type="submit"
               className="min-h-12 rounded-xl bg-gray-900 px-5 text-base font-semibold text-white"
@@ -518,7 +518,7 @@ export default function ServicesPage() {
           </div>
         ) : (
           <>
-            <section className="grid shrink-0 grid-cols-2 gap-3">
+            <section className="grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {visibleCategories.map((category) => {
                 const categoryItems = filteredItems.filter(
                   (item) => getMenuItemCategory(item) === category.type,
@@ -619,7 +619,7 @@ export default function ServicesPage() {
                     {t.empty}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {selectedItems.map((item) => (
                       <button
                         key={item.id}
@@ -739,7 +739,7 @@ function cleanNumberInput(value: string) {
 }
 
 const inputClassName =
-  "min-h-12 w-full rounded-xl border border-gray-300 bg-white px-4 text-base text-gray-900 outline-none focus:border-gray-900";
+  "min-h-12 w-full min-w-0 max-w-full rounded-xl border border-gray-300 bg-white px-4 text-base text-gray-900 outline-none focus:border-gray-900";
 
 function mergeDefaultMenuItems(savedItems: MenuItem[]) {
   const defaultsById = new Map(defaultMenuItems.map((item) => [item.id, item]));
