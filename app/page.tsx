@@ -19,8 +19,6 @@ type Expense = {
 
 const DAILY_RECORDS_KEY = "salon-record-daily-records";
 const EXPENSES_KEY = "salon-record-expenses";
-const EMPLOYEES_KEY = "salon-record-employees";
-const ORDER_DRAFT_KEY = "salon-record-order-draft";
 
 const text = {
   zh: {
@@ -62,11 +60,6 @@ const text = {
 export default function Home() {
   const { language, setLanguage, locale } = useLanguage();
   const t = text[language];
-  const clearTestDataLabel = language === "en" ? "Clear Test Data" : "清空测试数据";
-  const clearTestDataConfirm =
-    language === "en"
-      ? "Clear employees, records, expenses, and order draft? The menu will stay."
-      : "确认清空员工、账目、支出和订单草稿吗？菜单会保留。";
   const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const today = getTodayDate();
@@ -106,19 +99,6 @@ export default function Home() {
       estimatedIncome: sales - employeePay - expenseTotal,
     };
   }, [dailyRecords, expenses, today]);
-
-  function clearTestData() {
-    if (!window.confirm(clearTestDataConfirm)) {
-      return;
-    }
-
-    window.localStorage.removeItem(DAILY_RECORDS_KEY);
-    window.localStorage.removeItem(EXPENSES_KEY);
-    window.localStorage.removeItem(EMPLOYEES_KEY);
-    window.localStorage.removeItem(ORDER_DRAFT_KEY);
-    setDailyRecords([]);
-    setExpenses([]);
-  }
 
   return (
     <main className="min-h-screen bg-gray-100 pb-20">
@@ -177,14 +157,6 @@ export default function Home() {
           <ActionButton href="/daily-record" label={t.recordToday} primary />
           <ActionButton href="/expenses" label={t.addExpense} />
         </section>
-
-        <button
-          type="button"
-          onClick={clearTestData}
-          className="mt-3 min-h-11 rounded-xl border border-red-200 px-4 text-sm font-semibold text-red-600"
-        >
-          {clearTestDataLabel}
-        </button>
       </div>
       <BottomNav />
     </main>
