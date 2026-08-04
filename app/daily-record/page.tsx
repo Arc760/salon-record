@@ -42,6 +42,8 @@ type OrderExtra = {
   commission: number;
 };
 
+type PaymentMethod = "card" | "cash" | "gift-card";
+
 type EmployeeOrder = {
   id: string;
   employeeId: string;
@@ -51,6 +53,15 @@ type EmployeeOrder = {
   price: number;
   commission: number;
   extras: OrderExtra[];
+  paymentMethod?: PaymentMethod;
+  giftCardAmount?: number;
+  createdAt: string;
+};
+
+type GiftCardSale = {
+  id: string;
+  amount: number;
+  paymentMethod: "card" | "cash";
   createdAt: string;
 };
 
@@ -67,6 +78,7 @@ type DailyRecord = {
   note: string;
   commissions: CommissionEntry[];
   orders?: EmployeeOrder[];
+  giftCardSales?: GiftCardSale[];
   updatedAt: string;
 };
 
@@ -160,16 +172,35 @@ export default function DailyRecordPage() {
   const [date, setDate] = useState(getTodayDate());
   const [note, setNote] = useState("");
   const [orders, setOrders] = useState<EmployeeOrder[]>([]);
+  const [giftCardSales, setGiftCardSales] = useState<GiftCardSale[]>([]);
   const [employeeId, setEmployeeId] = useState("");
   const [serviceName, setServiceName] = useState("");
   const [price, setPrice] = useState("");
   const [commission, setCommission] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
+  const [giftCardAmount, setGiftCardAmount] = useState("");
+  const [giftCardSaleAmount, setGiftCardSaleAmount] = useState("");
+  const [giftCardSalePaymentMethod, setGiftCardSalePaymentMethod] =
+    useState<"card" | "cash">("card");
   const [extraName, setExtraName] = useState("");
   const [extraPrice, setExtraPrice] = useState("");
   const [extraCommission, setExtraCommission] = useState("");
   const [legacyCommissions, setLegacyCommissions] = useState<CommissionEntry[]>([]);
   const [showRevenueModal, setShowRevenueModal] = useState(false);
   const [showOrderForm, setShowOrderForm] = useState(false);
+  const [showGiftCardForm, setShowGiftCardForm] = useState(false);
+  const paymentLabels = {
+    paymentMethod: language === "en" ? "Payment Method" : "支付方式",
+    card: language === "en" ? "Card" : "刷卡",
+    cash: language === "en" ? "Cash" : "现金",
+    giftCard: language === "en" ? "Gift Card" : "礼品卡",
+    giftCardUsed: language === "en" ? "Gift Card Amount" : "礼品卡金额",
+    giftCardSales: language === "en" ? "Gift Card Sales" : "售出礼品卡",
+    addGiftCardSale:
+      language === "en" ? "Record Gift Card" : "记录礼品卡",
+    cashIncome: language === "en" ? "Cash Income" : "现金收入",
+    cardIncome: language === "en" ? "Card Income" : "刷卡收入",
+  };
 
   useEffect(() => {
     const loadData = window.setTimeout(() => {
@@ -198,6 +229,7 @@ export default function DailyRecordPage() {
     const loadRecord = window.setTimeout(() => {
       setNote(selectedRecord?.note ?? "");
       setOrders(selectedRecord?.orders ?? []);
+      setGiftCardSales(selectedRecord?.giftCardSales ?? []);
       setLegacyCommissions(selectedRecord?.orders ? [] : selectedRecord?.commissions ?? []);
     }, 0);
 
@@ -205,18 +237,27 @@ export default function DailyRecordPage() {
   }, [selectedRecord]);
 
   const totals = useMemo(() => {
-    const sales = orders.reduce((sum, order) => sum + getOrderRevenue(order), 0);
+    const orderSales = orders.reduce((sum, order) => sum + getOrderRevenue(order), 0);
+    const giftCardSaleTotal = giftCardSales.reduce(
+      (sum, sale) => sum + sale.amount,
+      0,
+    );
+    const paymentTotals = getPaymentTotals(orders, giftCardSales);
     const commissionTotal =
       orders.reduce((sum, order) => sum + getOrderCommission(order), 0) +
       legacyCommissions.reduce((sum, entry) => sum + entry.amount, 0);
 
     return {
-      sales,
+      sales: orderSales + giftCardSaleTotal,
+      orderSales,
+      giftCardSaleTotal,
+      cashSales: paymentTotals.cashSales,
+      cardSales: paymentTotals.cardSales,
       commissionTotal,
       orderCount: orders.length,
-      shopIncome: sales - commissionTotal,
+      shopIncome: orderSales + giftCardSaleTotal - commissionTotal,
     };
-  }, [legacyCommissions, orders]);
+  }, [giftCardSales, legacyCommissions, orders]);
   const selectedEmployee = employees.find((employee) => employee.id === employeeId);
   const selectedEmployeeOrders = orders.filter(
     (order) => order.employeeId === employeeId,
@@ -303,6 +344,9 @@ export default function DailyRecordPage() {
         price: Math.max(0, numericPrice),
         commission: Math.max(0, numericCommission),
         extras: extra,
+        paymentMethod,
+        giftCardAmount:
+          paymentMethod === "gift-card" ? Math.max(0, toAmount(giftCardAmount)) : 0,
         createdAt: new Date().toISOString(),
       },
     ]);
@@ -312,7 +356,30 @@ export default function DailyRecordPage() {
     setExtraName("");
     setExtraPrice("");
     setExtraCommission("");
+    setPaymentMethod("card");
+    setGiftCardAmount("");
     setShowOrderForm(false);
+  }
+
+  function addGiftCardSale() {
+    const amount = toAmount(giftCardSaleAmount);
+
+    if (amount <= 0) {
+      return;
+    }
+
+    setGiftCardSales((currentSales) => [
+      ...currentSales,
+      {
+        id: crypto.randomUUID(),
+        amount,
+        paymentMethod: giftCardSalePaymentMethod,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    setGiftCardSaleAmount("");
+    setGiftCardSalePaymentMethod("card");
+    setShowGiftCardForm(false);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -324,11 +391,12 @@ export default function DailyRecordPage() {
     ].filter((entry) => entry.amount > 0);
     const nextRecord: DailyRecord = {
       date,
-      cashSales: totals.sales,
-      cardSales: 0,
+      cashSales: totals.cashSales,
+      cardSales: totals.cardSales,
       note: note.trim(),
       commissions,
       orders,
+      giftCardSales,
       updatedAt: new Date().toISOString(),
     };
     const nextRecords = [
@@ -510,6 +578,40 @@ export default function DailyRecordPage() {
                       />
                     </FormField>
                   </div>
+                  <div>
+                    <p className="mb-2 text-sm font-semibold text-gray-800">
+                      {paymentLabels.paymentMethod}
+                    </p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        ["card", paymentLabels.card],
+                        ["cash", paymentLabels.cash],
+                        ["gift-card", paymentLabels.giftCard],
+                      ].map(([value, label]) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setPaymentMethod(value as PaymentMethod)}
+                          className={`min-h-11 rounded-xl border px-2 text-sm font-semibold ${
+                            paymentMethod === value
+                              ? "border-gray-900 bg-gray-900 text-white"
+                              : "border-gray-300 text-gray-700"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {paymentMethod === "gift-card" && (
+                    <FormField label={paymentLabels.giftCardUsed} htmlFor="gift-card-amount">
+                      <MoneyInput
+                        id="gift-card-amount"
+                        value={giftCardAmount}
+                        onChange={setGiftCardAmount}
+                      />
+                    </FormField>
+                  )}
                   <button
                     type="button"
                     onClick={addOrder}
@@ -529,6 +631,109 @@ export default function DailyRecordPage() {
               </>
             )}
           </section>
+
+          <section className="rounded-xl border border-gray-200 p-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-base font-bold text-gray-900">
+                  {paymentLabels.giftCardSales}
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  {giftCardSales.length} / {formatCurrency(totals.giftCardSaleTotal)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowGiftCardForm(true)}
+                className="min-h-11 rounded-xl border border-gray-300 px-4 text-sm font-semibold text-gray-700"
+              >
+                {paymentLabels.addGiftCardSale}
+              </button>
+            </div>
+            {giftCardSales.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {giftCardSales.map((sale) => (
+                  <div
+                    key={sale.id}
+                    className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2 text-sm"
+                  >
+                    <span className="font-semibold text-gray-900">
+                      {formatCurrency(sale.amount)} /{" "}
+                      {sale.paymentMethod === "cash"
+                        ? paymentLabels.cash
+                        : paymentLabels.card}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setGiftCardSales((currentSales) =>
+                          currentSales.filter((item) => item.id !== sale.id),
+                        )
+                      }
+                      className="font-semibold text-red-600"
+                    >
+                      {t.delete}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {showGiftCardForm && (
+            <AppModal
+              onClose={() => setShowGiftCardForm(false)}
+              contentClassName="space-y-4 overflow-y-auto p-5"
+            >
+              <FormField label={paymentLabels.giftCardSales} htmlFor="gift-card-sale-amount">
+                <MoneyInput
+                  id="gift-card-sale-amount"
+                  value={giftCardSaleAmount}
+                  onChange={setGiftCardSaleAmount}
+                />
+              </FormField>
+              <div>
+                <p className="mb-2 text-sm font-semibold text-gray-800">
+                  {paymentLabels.paymentMethod}
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    ["card", paymentLabels.card],
+                    ["cash", paymentLabels.cash],
+                  ].map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() =>
+                        setGiftCardSalePaymentMethod(value as "card" | "cash")
+                      }
+                      className={`min-h-11 rounded-xl border px-2 text-sm font-semibold ${
+                        giftCardSalePaymentMethod === value
+                          ? "border-gray-900 bg-gray-900 text-white"
+                          : "border-gray-300 text-gray-700"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={addGiftCardSale}
+                className="min-h-11 w-full rounded-xl bg-gray-900 px-4 text-sm font-semibold text-white"
+              >
+                {paymentLabels.addGiftCardSale}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowGiftCardForm(false)}
+                className="min-h-11 w-full rounded-xl border border-gray-300 px-4 text-sm font-semibold text-gray-700"
+              >
+                {t.close}
+              </button>
+            </AppModal>
+          )}
 
           {legacyCommissions.length > 0 && (
             <section className="rounded-2xl bg-amber-50 p-4">
@@ -560,6 +765,18 @@ export default function DailyRecordPage() {
             <SummaryCard
               label={t.commission}
               value={formatCurrency(totals.commissionTotal)}
+            />
+            <SummaryCard
+              label={paymentLabels.cashIncome}
+              value={formatCurrency(totals.cashSales)}
+            />
+            <SummaryCard
+              label={paymentLabels.cardIncome}
+              value={formatCurrency(totals.cardSales)}
+            />
+            <SummaryCard
+              label={paymentLabels.giftCardSales}
+              value={formatCurrency(totals.giftCardSaleTotal)}
             />
           </section>
 
@@ -746,6 +963,10 @@ function OrderRevenueModal({
                   <p className="mt-2 text-sm font-semibold text-gray-900">
                     {t.sales}: {formatCurrency(getOrderRevenue(order))}
                   </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {paymentLabel(order.paymentMethod ?? "card", t)} /{" "}
+                    {formatCurrency(getOrderPaidAmount(order))}
+                  </p>
                   <button
                     type="button"
                     onClick={() => onDeleteOrder(order.id)}
@@ -784,7 +1005,52 @@ function buildCommissionEntries(orders: EmployeeOrder[]) {
 }
 
 function getOrderRevenue(order: EmployeeOrder) {
+  return getOrderPaidAmount(order);
+}
+
+function getOrderGrossAmount(order: EmployeeOrder) {
   return order.price + order.extras.reduce((sum, extra) => sum + extra.price, 0);
+}
+
+function getOrderPaidAmount(order: EmployeeOrder) {
+  const grossAmount = getOrderGrossAmount(order);
+
+  if ((order.paymentMethod ?? "card") !== "gift-card") {
+    return grossAmount;
+  }
+
+  return Math.max(0, grossAmount - (order.giftCardAmount ?? 0));
+}
+
+function getPaymentTotals(orders: EmployeeOrder[], giftCardSales: GiftCardSale[]) {
+  return {
+    cashSales:
+      orders
+        .filter((order) => (order.paymentMethod ?? "card") === "cash")
+        .reduce((sum, order) => sum + getOrderPaidAmount(order), 0) +
+      giftCardSales
+        .filter((sale) => sale.paymentMethod === "cash")
+        .reduce((sum, sale) => sum + sale.amount, 0),
+    cardSales:
+      orders
+        .filter((order) => (order.paymentMethod ?? "card") !== "cash")
+        .reduce((sum, order) => sum + getOrderPaidAmount(order), 0) +
+      giftCardSales
+        .filter((sale) => sale.paymentMethod === "card")
+        .reduce((sum, sale) => sum + sale.amount, 0),
+  };
+}
+
+function paymentLabel(paymentMethod: PaymentMethod, t: (typeof text)["zh"]) {
+  if (paymentMethod === "cash") {
+    return t.back.includes("Back") ? "Cash" : "现金";
+  }
+
+  if (paymentMethod === "gift-card") {
+    return t.back.includes("Back") ? "Gift Card" : "礼品卡";
+  }
+
+  return t.back.includes("Back") ? "Card" : "刷卡";
 }
 
 function getOrderCommission(order: EmployeeOrder) {
