@@ -83,6 +83,8 @@ const text = {
     collapseRecords: "收起记录",
     disable: "停用",
     restore: "恢复",
+    deleteEmployee: "删除",
+    deleteConfirm: "请确认是否删除这个员工？删除后员工会从员工管理中移除。",
     active: "在职",
     inactive: "已停用",
     salaryHistory: "薪资变动记录",
@@ -141,6 +143,8 @@ const text = {
     collapseRecords: "Collapse",
     disable: "Disable",
     restore: "Restore",
+    deleteEmployee: "Delete",
+    deleteConfirm: "Please confirm deleting this employee. This removes the employee from employee management.",
     active: "Active",
     inactive: "Inactive",
     salaryHistory: "Salary Change History",
@@ -453,6 +457,16 @@ export default function EmployeesPage() {
     );
   }
 
+  function deleteEmployee(employeeId: string) {
+    if (!window.confirm(t.deleteConfirm)) {
+      return;
+    }
+
+    setEmployees((currentEmployees) =>
+      currentEmployees.filter((employee) => employee.id !== employeeId),
+    );
+  }
+
   return (
     <main className="min-h-screen bg-gray-100 pb-20">
       <div className="mx-auto flex min-h-screen max-w-md flex-col bg-white px-4 pb-24 pt-4">
@@ -521,6 +535,7 @@ export default function EmployeesPage() {
           setExpandedHistoryId={setExpandedHistoryId}
           onEdit={openEditForm}
           onToggleStatus={toggleEmployeeStatus}
+          onDelete={deleteEmployee}
           onEditScheduledSalary={openEditScheduledSalary}
           onCancelScheduledSalary={cancelScheduledSalary}
         />
@@ -536,6 +551,7 @@ export default function EmployeesPage() {
               setExpandedHistoryId={setExpandedHistoryId}
               onEdit={openEditForm}
               onToggleStatus={toggleEmployeeStatus}
+              onDelete={deleteEmployee}
               onEditScheduledSalary={openEditScheduledSalary}
               onCancelScheduledSalary={cancelScheduledSalary}
             />
@@ -674,6 +690,7 @@ function EmployeeSection({
   setExpandedHistoryId,
   onEdit,
   onToggleStatus,
+  onDelete,
   onEditScheduledSalary,
   onCancelScheduledSalary,
 }: {
@@ -685,6 +702,7 @@ function EmployeeSection({
   setExpandedHistoryId: (id: string | null) => void;
   onEdit: (employee: Employee) => void;
   onToggleStatus: (employeeId: string) => void;
+  onDelete: (employeeId: string) => void;
   onEditScheduledSalary: (employee: Employee, entry: SalaryHistoryEntry) => void;
   onCancelScheduledSalary: (employeeId: string, salaryEntryId: string) => void;
 }) {
@@ -738,6 +756,7 @@ function EmployeeSection({
               showHistory={expandedHistoryId === employee.id}
               onEdit={onEdit}
               onToggleStatus={onToggleStatus}
+              onDelete={onDelete}
               onToggleHistory={(employeeId) =>
                 setExpandedHistoryId(
                   expandedHistoryId === employeeId ? null : employeeId,
@@ -763,6 +782,7 @@ function EmployeeCard({
   showHistory,
   onEdit,
   onToggleStatus,
+  onDelete,
   onToggleHistory,
   onEditScheduledSalary,
   onCancelScheduledSalary,
@@ -772,6 +792,7 @@ function EmployeeCard({
   showHistory: boolean;
   onEdit: (employee: Employee) => void;
   onToggleStatus: (employeeId: string) => void;
+  onDelete: (employeeId: string) => void;
   onToggleHistory: (employeeId: string) => void;
   onEditScheduledSalary: (employee: Employee, entry: SalaryHistoryEntry) => void;
   onCancelScheduledSalary: (employeeId: string, salaryEntryId: string) => void;
@@ -838,7 +859,7 @@ function EmployeeCard({
         </div>
       )}
 
-      <div className="mt-4 grid grid-cols-3 gap-2">
+      <div className="mt-4 grid grid-cols-2 gap-2">
         <button
           type="button"
           onClick={() => onEdit(employee)}
@@ -859,6 +880,13 @@ function EmployeeCard({
           className="min-h-10 rounded-xl border border-gray-300 px-2 text-sm font-semibold text-gray-700"
         >
           {employee.active ? t.disable : t.restore}
+        </button>
+        <button
+          type="button"
+          onClick={() => onDelete(employee.id)}
+          className="min-h-10 rounded-xl border border-red-200 px-2 text-sm font-semibold text-red-600"
+        >
+          {t.deleteEmployee}
         </button>
       </div>
 
