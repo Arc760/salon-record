@@ -262,8 +262,8 @@ export default function ReportsPage() {
   );
 
   return (
-    <main className="min-h-screen bg-gray-100 pb-20">
-      <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col bg-white px-4 pb-24 pt-4 sm:px-6 lg:px-8">
+    <main className="min-h-screen overflow-x-hidden bg-gray-100 pb-20">
+      <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col overflow-x-hidden bg-white px-4 pb-24 pt-4 sm:px-6 lg:px-8">
         <header className="mb-4 flex items-start justify-between gap-4">
           <div>
             <Link
@@ -545,25 +545,25 @@ function EmployeeReportView({
           </select>
         </div>
 
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <div className="min-w-0">
+        <div className="mt-3 grid w-full min-w-0 max-w-full grid-cols-1 gap-2 overflow-hidden sm:grid-cols-2">
+          <div className="w-full min-w-0 max-w-full overflow-hidden">
             <FormLabel htmlFor="salary-start">{t.startDate}</FormLabel>
             <input
               id="salary-start"
               type="date"
               value={startDate}
               onChange={(event) => setStartDate(event.target.value)}
-              className={inputClassName}
+              className={dateInputClassName}
             />
           </div>
-          <div className="min-w-0">
+          <div className="w-full min-w-0 max-w-full overflow-hidden">
             <FormLabel htmlFor="salary-end">{t.endDate}</FormLabel>
             <input
               id="salary-end"
               type="date"
               value={endDate}
               onChange={(event) => setEndDate(event.target.value)}
-              className={inputClassName}
+              className={dateInputClassName}
             />
           </div>
         </div>
@@ -994,6 +994,9 @@ type EmployeeReport = {
 
 const inputClassName =
   "min-h-12 w-full min-w-0 max-w-full rounded-xl border border-gray-300 bg-white px-4 text-base text-gray-900 outline-none focus:border-gray-900";
+
+const dateInputClassName =
+  "block min-h-12 w-full min-w-0 max-w-full appearance-none rounded-xl border border-gray-300 bg-white px-2 text-sm text-gray-900 outline-none focus:border-gray-900 sm:px-4 sm:text-base";
 
 function buildEmployeeReport({
   employees,
