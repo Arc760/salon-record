@@ -175,6 +175,7 @@ export default function EmployeesPage() {
   const [effectiveDate, setEffectiveDate] = useState(getTodayDate());
   const [changeReason, setChangeReason] = useState("");
   const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadEmployees = window.setTimeout(() => {
@@ -211,6 +212,29 @@ export default function EmployeesPage() {
     () => employees.filter((employee) => !employee.active),
     [employees],
   );
+  const selectedEmployee = useMemo(
+    () =>
+      employees.find((employee) => employee.id === selectedEmployeeId) ??
+      activeEmployees[0] ??
+      employees[0] ??
+      null,
+    [activeEmployees, employees, selectedEmployeeId],
+  );
+
+  useEffect(() => {
+    if (!selectedEmployee && selectedEmployeeId !== null) {
+      const resetSelection = window.setTimeout(() => setSelectedEmployeeId(null), 0);
+      return () => window.clearTimeout(resetSelection);
+    }
+
+    if (!selectedEmployeeId && selectedEmployee) {
+      const selectEmployee = window.setTimeout(
+        () => setSelectedEmployeeId(selectedEmployee.id),
+        0,
+      );
+      return () => window.clearTimeout(selectEmployee);
+    }
+  }, [selectedEmployee, selectedEmployeeId]);
 
   function openAddForm() {
     resetForm();
@@ -326,6 +350,7 @@ export default function EmployeesPage() {
     };
 
     setEmployees((currentEmployees) => [...currentEmployees, newEmployee]);
+    setSelectedEmployeeId(newEmployee.id);
   }
 
   function updateEmployee(
@@ -466,6 +491,9 @@ export default function EmployeesPage() {
     setEmployees((currentEmployees) =>
       currentEmployees.filter((employee) => employee.id !== employeeId),
     );
+    if (selectedEmployeeId === employeeId) {
+      setSelectedEmployeeId(null);
+    }
   }
 
   return (
@@ -479,28 +507,28 @@ export default function EmployeesPage() {
             >
               {t.back}
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900">{t.title}</h1>
-            <p className="mt-1 text-sm text-gray-500">{t.subtitle}</p>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {language === "en" ? "Employee Management" : "员工管理"}
+            </h1>
           </div>
           <LanguageSwitcher language={language} setLanguage={setLanguage} />
         </header>
 
-        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="grid w-full flex-1 grid-cols-2 gap-3">
-            <SummaryCard label={t.activeEmployees} value={activeEmployees.length} />
-            <SummaryCard label={t.inactiveEmployees} value={inactiveEmployees.length} />
-          </div>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-gray-700">
+            {activeEmployees.length} {t.activeEmployees}
+            {inactiveEmployees.length > 0
+              ? ` / ${inactiveEmployees.length} ${t.inactiveEmployees}`
+              : ""}
+          </p>
           <button
             type="button"
             onClick={openAddForm}
-            className="min-h-11 w-full shrink-0 rounded-xl bg-gray-900 px-3 text-sm font-semibold text-white sm:w-auto"
+            aria-label={t.addEmployee}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-900 text-2xl font-semibold leading-none text-white"
           >
-            {t.addEmployee}
+            +
           </button>
-        </div>
-
-        <div className="mb-3 rounded-xl bg-blue-50 p-3">
-          <p className="text-sm leading-6 text-blue-900">{t.note}</p>
         </div>
 
         {showForm && (
@@ -525,35 +553,56 @@ export default function EmployeesPage() {
           </AppModal>
         )}
 
-        <EmployeeSection
-          t={t}
-          title={t.activeEmployees}
-          employees={activeEmployees}
-          emptyMessage={t.noEmployees}
-          expandedHistoryId={expandedHistoryId}
-          setExpandedHistoryId={setExpandedHistoryId}
-          onEdit={openEditForm}
-          onToggleStatus={toggleEmployeeStatus}
-          onDelete={deleteEmployee}
-          onEditScheduledSalary={openEditScheduledSalary}
-          onCancelScheduledSalary={cancelScheduledSalary}
-        />
+        {employees.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center">
+            <p className="font-semibold text-gray-800">{t.noEmployees}</p>
+          </div>
+        ) : (
+          <div className="grid gap-3 lg:grid-cols-[17rem_1fr]">
+            <section className="rounded-2xl border border-gray-200 p-3">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-1">
+                {employees.map((employee) => (
+                  <button
+                    key={employee.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedEmployeeId(employee.id);
+                      setExpandedHistoryId(null);
+                    }}
+                    className={`min-h-12 rounded-xl border px-3 text-left text-sm font-semibold ${
+                      selectedEmployee?.id === employee.id
+                        ? "border-gray-900 bg-gray-900 text-white"
+                        : "border-gray-200 bg-white text-gray-800"
+                    }`}
+                  >
+                    <span className="block truncate">{employee.name}</span>
+                    {!employee.active && (
+                      <span className="mt-1 block text-xs opacity-70">
+                        {t.inactive}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </section>
 
-        {inactiveEmployees.length > 0 && (
-          <div className="mt-8">
-            <EmployeeSection
-              t={t}
-              title={t.inactiveEmployeeTitle}
-              employees={inactiveEmployees}
-              emptyMessage=""
-              expandedHistoryId={expandedHistoryId}
-              setExpandedHistoryId={setExpandedHistoryId}
-              onEdit={openEditForm}
-              onToggleStatus={toggleEmployeeStatus}
-              onDelete={deleteEmployee}
-              onEditScheduledSalary={openEditScheduledSalary}
-              onCancelScheduledSalary={cancelScheduledSalary}
-            />
+            {selectedEmployee && (
+              <EmployeeCard
+                t={t}
+                employee={selectedEmployee}
+                showHistory={expandedHistoryId === selectedEmployee.id}
+                onEdit={openEditForm}
+                onToggleStatus={toggleEmployeeStatus}
+                onDelete={deleteEmployee}
+                onToggleHistory={(employeeId) =>
+                  setExpandedHistoryId(
+                    expandedHistoryId === employeeId ? null : employeeId,
+                  )
+                }
+                onEditScheduledSalary={openEditScheduledSalary}
+                onCancelScheduledSalary={cancelScheduledSalary}
+              />
+            )}
           </div>
         )}
       </div>
@@ -676,102 +725,6 @@ function EmployeeForm({
           {isEditing ? t.saveChanges : t.saveEmployee}
         </button>
       </form>
-    </section>
-  );
-}
-
-function EmployeeSection({
-  t,
-  title,
-  employees,
-  emptyMessage,
-  expandedHistoryId,
-  setExpandedHistoryId,
-  onEdit,
-  onToggleStatus,
-  onDelete,
-  onEditScheduledSalary,
-  onCancelScheduledSalary,
-}: {
-  t: EmployeeText;
-  title: string;
-  employees: Employee[];
-  emptyMessage: string;
-  expandedHistoryId: string | null;
-  setExpandedHistoryId: (id: string | null) => void;
-  onEdit: (employee: Employee) => void;
-  onToggleStatus: (employeeId: string) => void;
-  onDelete: (employeeId: string) => void;
-  onEditScheduledSalary: (employee: Employee, entry: SalaryHistoryEntry) => void;
-  onCancelScheduledSalary: (employeeId: string, salaryEntryId: string) => void;
-}) {
-  const [showModal, setShowModal] = useState(false);
-
-  return (
-    <section className="rounded-2xl border border-gray-200 p-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-base font-bold text-gray-900">{title}</h2>
-          <p className="mt-1 text-sm text-gray-500">{employees.length}</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowModal(true)}
-          className="min-h-10 rounded-xl border border-gray-300 px-4 text-sm font-semibold text-gray-700"
-        >
-          {t.salaryRecords}
-        </button>
-      </div>
-
-      {showModal && (
-        <AppModal
-          onClose={() => setShowModal(false)}
-          contentClassName="flex flex-col"
-        >
-            <div className="flex items-center justify-between border-b border-gray-200 p-4">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">{title}</h2>
-                <p className="mt-1 text-sm text-gray-500">{employees.length}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="rounded-xl border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700"
-              >
-                {t.cancel}
-              </button>
-            </div>
-            <div className="overflow-y-auto p-4">
-      {employees.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center">
-          <p className="font-semibold text-gray-800">{emptyMessage}</p>
-          <p className="mt-2 text-sm text-gray-500">{t.emptyHint}</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {employees.map((employee) => (
-            <EmployeeCard
-              key={employee.id}
-              t={t}
-              employee={employee}
-              showHistory={expandedHistoryId === employee.id}
-              onEdit={onEdit}
-              onToggleStatus={onToggleStatus}
-              onDelete={onDelete}
-              onToggleHistory={(employeeId) =>
-                setExpandedHistoryId(
-                  expandedHistoryId === employeeId ? null : employeeId,
-                )
-              }
-              onEditScheduledSalary={onEditScheduledSalary}
-              onCancelScheduledSalary={onCancelScheduledSalary}
-            />
-          ))}
-        </div>
-      )}
-            </div>
-        </AppModal>
-      )}
     </section>
   );
 }
@@ -1073,15 +1026,6 @@ function FormField({
         {label}
       </label>
       {children}
-    </div>
-  );
-}
-
-function SummaryCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-2xl border border-gray-200 p-3">
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className="mt-2 text-2xl font-bold text-gray-900">{value}</p>
     </div>
   );
 }
