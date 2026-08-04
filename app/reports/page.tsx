@@ -263,7 +263,7 @@ export default function ReportsPage() {
 
   return (
     <main className="min-h-screen bg-gray-100 pb-20">
-      <div className="mx-auto flex min-h-screen max-w-md flex-col bg-white px-4 pb-24 pt-4">
+      <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col bg-white px-4 pb-24 pt-4 sm:px-6 lg:px-8">
         <header className="mb-4 flex items-start justify-between gap-4">
           <div>
             <Link
@@ -390,7 +390,7 @@ function ShopReportView({
         </p>
       </section>
 
-      <section className="mb-3 grid grid-cols-2 gap-2">
+      <section className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-3">
         <SummaryCard label={t.sales} value={formatCurrency(report.sales)} />
         <SummaryCard label={t.cashSales} value={formatCurrency(report.cashSales)} />
         <SummaryCard label={t.cardSales} value={formatCurrency(report.cardSales)} />
@@ -545,8 +545,8 @@ function EmployeeReportView({
           </select>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <div>
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="min-w-0">
             <FormLabel htmlFor="salary-start">{t.startDate}</FormLabel>
             <input
               id="salary-start"
@@ -556,7 +556,7 @@ function EmployeeReportView({
               className={inputClassName}
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <FormLabel htmlFor="salary-end">{t.endDate}</FormLabel>
             <input
               id="salary-end"
@@ -619,7 +619,7 @@ function EmployeeReportView({
         </section>
       )}
 
-      <section className="mb-3 grid grid-cols-2 gap-2">
+      <section className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-5">
         <SummaryCard label="营业额 / Sales" value={formatCurrency(report.revenueTotal)} />
         <SummaryCard label="单数 / Orders" value={String(report.orderCount)} />
         <SummaryCard label={t.basePay} value={formatCurrency(report.basePayTotal)} />
@@ -636,7 +636,7 @@ function EmployeeReportView({
         </p>
       </section>
 
-      <section className="mb-3 grid grid-cols-3 gap-2">
+      <section className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
         <button
           type="button"
           onClick={() => setDetailModal("summary")}
@@ -768,7 +768,7 @@ function EmployeeReportView({
                   Sales {formatCurrency(week.revenueTotal)} · Orders{" "}
                   {week.orderCount}
                 </p>
-                <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+                <div className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
                   <MiniTotal label={t.basePay} value={week.basePayTotal} />
                   <MiniTotal label={t.commission} value={week.commissionTotal} />
                   <MiniTotal label={t.total} value={week.payTotal} />
@@ -993,7 +993,7 @@ type EmployeeReport = {
 };
 
 const inputClassName =
-  "min-h-12 w-full rounded-xl border border-gray-300 bg-white px-4 text-base text-gray-900 outline-none focus:border-gray-900";
+  "min-h-12 w-full min-w-0 max-w-full rounded-xl border border-gray-300 bg-white px-4 text-base text-gray-900 outline-none focus:border-gray-900";
 
 function buildEmployeeReport({
   employees,
