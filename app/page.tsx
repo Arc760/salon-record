@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 type Language = "zh" | "en";
@@ -105,11 +106,28 @@ export default function Home() {
         </div>
 
         <section className="space-y-3">
-          <ActionButton label={text.recordToday} primary />
-          <ActionButton label={text.addExpense} />
-          <ActionButton label={text.employees} />
-          <ActionButton label={text.reports} />
+          <ActionButton
+            href="/daily-record"
+            label={text.recordToday}
+            primary
+          />
+
+          <ActionButton
+            href="/expenses"
+            label={text.addExpense}
+          />
+
+          <ActionButton
+            href="/employees"
+            label={text.employees}
+          />
+
+          <ActionButton
+            href="/reports"
+            label={text.reports}
+          />
         </section>
+        
       </div>
     </main>
   );
@@ -136,22 +154,24 @@ function SummaryCard({
 }
 
 function ActionButton({
+  href,
   label,
   primary = false,
 }: {
+  href: string;
   label: string;
   primary?: boolean;
 }) {
   return (
-    <button
-      type="button"
+    <Link
+      href={href}
       className={
         primary
-          ? "min-h-14 w-full rounded-2xl bg-gray-900 px-5 text-base font-semibold text-white"
-          : "min-h-14 w-full rounded-2xl border border-gray-300 bg-white px-5 text-left text-base font-semibold text-gray-800"
+          ? "flex min-h-14 w-full items-center rounded-2xl bg-gray-900 px-5 text-base font-semibold text-white"
+          : "flex min-h-14 w-full items-center rounded-2xl border border-gray-300 bg-white px-5 text-left text-base font-semibold text-gray-800"
       }
     >
       {label}
-    </button>
+    </Link>
   );
 }
