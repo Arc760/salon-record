@@ -1,152 +1,173 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { BottomNav } from "./BottomNav";
+import { LanguageSwitcher, useLanguage } from "./useLanguage";
 
-type Language = "zh" | "en";
+type DailyRecord = {
+  date: string;
+  cashSales: number;
+  cardSales: number;
+  commissions: { amount: number }[];
+};
 
-const translations = {
+type Expense = {
+  date: string;
+  amount: number;
+};
+
+const DAILY_RECORDS_KEY = "salon-record-daily-records";
+const EXPENSES_KEY = "salon-record-expenses";
+
+const text = {
   zh: {
-    appName: "美甲店经营账本",
-    englishName: "Salon Record",
+    appName: "美甲店经营记账本",
+    subtitle: "Salon Record",
     greeting: "晚上好",
     sales: "今日营业额",
     expenses: "今日支出",
-    employeePay: "员工工资",
+    employeePay: "员工提成",
     estimatedIncome: "预计店铺收入",
     notRecorded: "尚未记录",
-    recordToday: "记录今日账目",
+    recordToday: "记账 / 补录账目",
     addExpense: "添加支出",
     employees: "员工管理",
+    services: "菜单",
     reports: "查看报表",
-    status: "今天还没有完成记账",
+    statusDone: "今天的账目已经记录",
+    statusPending: "今天还没有完成记账",
   },
   en: {
     appName: "Salon Record",
-    englishName: "美甲店经营账本",
+    subtitle: "Nail salon business ledger",
     greeting: "Good evening",
-    sales: "Today’s Sales",
-    expenses: "Today’s Expenses",
-    employeePay: "Employee Pay",
+    sales: "Today's Sales",
+    expenses: "Today's Expenses",
+    employeePay: "Employee Commission",
     estimatedIncome: "Estimated Income",
     notRecorded: "Not recorded",
-    recordToday: "Record Today",
+    recordToday: "Record / Backfill",
     addExpense: "Add Expense",
     employees: "Employees",
+    services: "Menu",
     reports: "Reports",
-    status: "Today’s report is not completed",
+    statusDone: "Today's record is saved",
+    statusPending: "Today's report is not completed",
   },
 };
 
 export default function Home() {
-  const [language, setLanguage] = useState<Language>("zh");
-  const text = translations[language];
+  const { language, setLanguage, locale } = useLanguage();
+  const t = text[language];
+  const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const today = getTodayDate();
+  const formattedDate = useMemo(
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }).format(new Date()),
+    [locale],
+  );
+
+  useEffect(() => {
+    const loadSummary = window.setTimeout(() => {
+      setDailyRecords(readStorage<DailyRecord[]>(DAILY_RECORDS_KEY, []));
+      setExpenses(readStorage<Expense[]>(EXPENSES_KEY, []));
+    }, 0);
+
+    return () => window.clearTimeout(loadSummary);
+  }, []);
+
+  const todaySummary = useMemo(() => {
+    const record = dailyRecords.find((item) => item.date === today);
+    const sales = record ? record.cashSales + record.cardSales : 0;
+    const employeePay =
+      record?.commissions.reduce((sum, entry) => sum + entry.amount, 0) ?? 0;
+    const expenseTotal = expenses
+      .filter((expense) => expense.date === today)
+      .reduce((sum, expense) => sum + expense.amount, 0);
+
+    return {
+      hasRecord: Boolean(record),
+      sales,
+      expenses: expenseTotal,
+      employeePay,
+      estimatedIncome: sales - employeePay - expenseTotal,
+    };
+  }, [dailyRecords, expenses, today]);
 
   return (
-    <main className="min-h-screen bg-gray-100">
-      <div className="mx-auto min-h-screen max-w-md bg-white px-5 pb-10 pt-6">
-        <header className="mb-8 flex items-start justify-between">
+    <main className="min-h-screen bg-gray-100 pb-20">
+      <div className="mx-auto flex min-h-screen max-w-md flex-col bg-white px-4 pb-24 pt-4">
+        <header className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {text.appName}
-            </h1>
-
-            <p className="mt-1 text-sm text-gray-500">
-              {text.englishName}
-            </p>
+            <h1 className="text-2xl font-bold text-gray-900">{t.appName}</h1>
+            <p className="mt-1 text-sm text-gray-500">{t.subtitle}</p>
           </div>
-
-          <button
-            type="button"
-            onClick={() =>
-              setLanguage(language === "zh" ? "en" : "zh")
-            }
-            className="rounded-full border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700"
-          >
-            {language === "zh" ? "English" : "中文"}
-          </button>
+          <LanguageSwitcher language={language} setLanguage={setLanguage} />
         </header>
 
-        <section className="mb-6">
-          <p className="text-lg font-semibold text-gray-900">
-            {text.greeting}
-          </p>
-
-          <p className="mt-1 text-sm text-gray-500">
-            August 3, 2026
-          </p>
+        <section className="mb-3">
+          <p className="text-base font-semibold text-gray-900">{t.greeting}</p>
+          <p className="mt-1 text-sm text-gray-500">{formattedDate}</p>
         </section>
 
-        <section className="mb-6 grid grid-cols-2 gap-3">
+        <section className="mb-3 grid grid-cols-2 gap-2">
           <SummaryCard
-            title={text.sales}
-            value={text.notRecorded}
+            title={t.sales}
+            value={
+              todaySummary.hasRecord
+                ? formatCurrency(todaySummary.sales)
+                : t.notRecorded
+            }
           />
-
           <SummaryCard
-            title={text.expenses}
-            value={text.notRecorded}
+            title={t.expenses}
+            value={formatCurrency(todaySummary.expenses)}
           />
-
           <SummaryCard
-            title={text.employeePay}
-            value={text.notRecorded}
+            title={t.employeePay}
+            value={
+              todaySummary.hasRecord
+                ? formatCurrency(todaySummary.employeePay)
+                : t.notRecorded
+            }
           />
-
           <SummaryCard
-            title={text.estimatedIncome}
-            value={text.notRecorded}
+            title={t.estimatedIncome}
+            value={
+              todaySummary.hasRecord
+                ? formatCurrency(todaySummary.estimatedIncome)
+                : t.notRecorded
+            }
           />
         </section>
 
-        <div className="mb-6 rounded-2xl bg-amber-50 p-4">
+        <div className="mb-3 rounded-xl bg-amber-50 p-3">
           <p className="text-sm font-medium text-amber-900">
-            {text.status}
+            {todaySummary.hasRecord ? t.statusDone : t.statusPending}
           </p>
         </div>
 
-        <section className="space-y-3">
-          <ActionButton
-            href="/daily-record"
-            label={text.recordToday}
-            primary
-          />
-
-          <ActionButton
-            href="/expenses"
-            label={text.addExpense}
-          />
-
-          <ActionButton
-            href="/employees"
-            label={text.employees}
-          />
-
-          <ActionButton
-            href="/reports"
-            label={text.reports}
-          />
+        <section className="grid grid-cols-2 gap-2">
+          <ActionButton href="/daily-record" label={t.recordToday} primary />
+          <ActionButton href="/expenses" label={t.addExpense} />
         </section>
-        
       </div>
+      <BottomNav />
     </main>
   );
 }
 
-function SummaryCard({
-  title,
-  value,
-}: {
-  title: string;
-  value: string;
-}) {
+function SummaryCard({ title, value }: { title: string; value: string }) {
   return (
-    <article className="rounded-2xl border border-gray-200 p-4">
-      <p className="min-h-10 text-sm text-gray-500">
-        {title}
-      </p>
-
-      <p className="mt-3 text-lg font-bold text-gray-900">
+    <article className="rounded-xl border border-gray-200 p-3">
+      <p className="min-h-8 text-xs text-gray-500">{title}</p>
+      <p className="mt-2 break-words text-sm font-bold text-gray-900">
         {value}
       </p>
     </article>
@@ -167,11 +188,36 @@ function ActionButton({
       href={href}
       className={
         primary
-          ? "flex min-h-14 w-full items-center rounded-2xl bg-gray-900 px-5 text-base font-semibold text-white"
-          : "flex min-h-14 w-full items-center rounded-2xl border border-gray-300 bg-white px-5 text-left text-base font-semibold text-gray-800"
+          ? "flex min-h-12 w-full items-center rounded-xl bg-gray-900 px-3 text-sm font-semibold text-white"
+          : "flex min-h-12 w-full items-center rounded-xl border border-gray-300 bg-white px-3 text-left text-sm font-semibold text-gray-800"
       }
     >
       {label}
     </Link>
   );
+}
+
+function readStorage<T>(key: string, fallback: T): T {
+  try {
+    const value = window.localStorage.getItem(key);
+    return value ? (JSON.parse(value) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function getTodayDate() {
+  const currentDate = new Date();
+  const year = currentDate.getFullYear();
+  const month = String(currentDate.getMonth() + 1).padStart(2, "0");
+  const day = String(currentDate.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(amount);
 }
