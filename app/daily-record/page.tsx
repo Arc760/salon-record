@@ -268,10 +268,27 @@ export default function DailyRecordPage() {
       return;
     }
 
+    const hasDraftContent = [
+      serviceName,
+      price,
+      commission,
+      extraName,
+      extraPrice,
+      extraCommission,
+      discountAmount,
+      giftCardAmount,
+      splitCashAmount,
+      splitCardAmount,
+    ].some((value) => value.trim() !== "");
+
+    if (!hasDraftContent && paymentMethod === "card") {
+      window.localStorage.removeItem(ORDER_DRAFT_KEY);
+      return;
+    }
+
     window.localStorage.setItem(
       ORDER_DRAFT_KEY,
       JSON.stringify({
-        employeeId,
         serviceName,
         price,
         commission,
@@ -351,7 +368,7 @@ export default function DailyRecordPage() {
 
     return query
       ? activeServices
-          .filter((item) => item.name.toLowerCase().includes(query))
+          .filter((item) => menuItemMatchesQuery(item, query))
           .slice(0, 8)
       : [];
   }, [activeServices, serviceName]);
@@ -360,7 +377,7 @@ export default function DailyRecordPage() {
 
     return query
       ? activeExtras
-          .filter((item) => item.name.toLowerCase().includes(query))
+          .filter((item) => menuItemMatchesQuery(item, query))
           .slice(0, 8)
       : [];
   }, [activeExtras, extraName]);
@@ -408,7 +425,6 @@ export default function DailyRecordPage() {
   function openAddOrderForm() {
     resetOrderForm();
     const draft = readStorage<{
-      employeeId?: string;
       serviceName?: string;
       price?: string;
       commission?: string;
@@ -424,7 +440,6 @@ export default function DailyRecordPage() {
     } | null>(ORDER_DRAFT_KEY, null);
 
     if (draft) {
-      setEmployeeId(draft.employeeId || employeeId);
       setServiceName(draft.serviceName ?? "");
       setPrice(draft.price ?? "");
       setCommission(draft.commission ?? "");
@@ -709,6 +724,27 @@ export default function DailyRecordPage() {
                     onClose={closeOrderForm}
                     contentClassName="space-y-4 overflow-y-auto p-5"
                   >
+                  <div>
+                    <p className="mb-2 text-sm font-semibold text-gray-800">
+                      {t.employee}
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {employees.map((employee) => (
+                        <button
+                          key={employee.id}
+                          type="button"
+                          onClick={() => setEmployeeId(employee.id)}
+                          className={`min-h-11 rounded-xl border px-3 text-left text-sm font-semibold ${
+                            employeeId === employee.id
+                              ? "border-gray-900 bg-gray-900 text-white"
+                              : "border-gray-300 text-gray-700"
+                          }`}
+                        >
+                          {employee.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <FormField label={t.serviceName} htmlFor="service-name">
                     <input
                       id="service-name"
@@ -1426,6 +1462,99 @@ function getOrderCommission(order: EmployeeOrder) {
 
 function isExtraMenuItem(item: MenuItem) {
   return item.type === "extra" || item.type === "additional-services";
+}
+
+function menuItemMatchesQuery(item: MenuItem, query: string) {
+  const normalizedQuery = normalizeSearchText(query);
+
+  if (!normalizedQuery) {
+    return false;
+  }
+
+  const searchableText = [
+    item.name,
+    item.id,
+    item.type,
+    getInitials(item.name),
+    ...getMenuAliases(item),
+  ]
+    .map(normalizeSearchText)
+    .join(" ");
+
+  if (normalizedQuery.length <= 2) {
+    return getMenuAliases(item)
+      .map(normalizeSearchText)
+      .some((alias) => alias === normalizedQuery);
+  }
+
+  return searchableText.includes(normalizedQuery);
+}
+
+function getMenuAliases(item: MenuItem) {
+  const aliases = new Set<string>();
+  const normalizedName = normalizeSearchText(item.name);
+
+  aliases.add(getInitials(item.name));
+
+  if (normalizedName.includes("dipped")) {
+    aliases.add("dip");
+    aliases.add("dp");
+  }
+
+  if (normalizedName === "regular pedicure") {
+    aliases.add("p");
+    aliases.add("ped");
+    aliases.add("pedi");
+  }
+
+  if (normalizedName === "regular gel pedicure") {
+    aliases.add("gp");
+    aliases.add("rgp");
+  }
+
+  if (
+    normalizedName === "classic manicure" ||
+    normalizedName === "regular manicure"
+  ) {
+    aliases.add("m");
+    aliases.add("mani");
+  }
+
+  if (normalizedName === "gel manicure") {
+    aliases.add("gm");
+  }
+
+  if (normalizedName === "gel color") {
+    aliases.add("gc");
+  }
+
+  if (normalizedName.includes("acrylic")) {
+    aliases.add("ac");
+    aliases.add("a");
+  }
+
+  if (normalizedName.includes("uv gel")) {
+    aliases.add("uv");
+  }
+
+  if (normalizedName.includes("french")) {
+    aliases.add("fr");
+  }
+
+  return [...aliases].filter(Boolean);
+}
+
+function getInitials(value: string) {
+  return value
+    .split(/[^a-zA-Z0-9]+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .toLowerCase();
+}
+
+function normalizeSearchText(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 function readStorage<T>(key: string, fallback: T): T {
