@@ -207,20 +207,15 @@ export default function ReportsPage() {
     );
     const filteredExpenses = expenses.filter((expense) => dateSet.has(expense.date));
     const cashSales = filteredRecords.reduce(
-      (sum, record) => sum + record.cashSales,
+      (sum, record) => sum + getRecordCashSales(record),
       0,
     );
     const cardSales = filteredRecords.reduce(
-      (sum, record) => sum + record.cardSales,
+      (sum, record) => sum + getRecordCardSales(record),
       0,
     );
     const commissionTotal = filteredRecords.reduce(
-      (sum, record) =>
-        sum +
-        record.commissions.reduce(
-          (commissionSum, entry) => commissionSum + entry.amount,
-          0,
-        ),
+      (sum, record) => sum + getRecordCommissionTotal(record),
       0,
     );
     const expenseTotal = filteredExpenses.reduce(
@@ -1349,6 +1344,33 @@ function getLegacyCommissionForEmployee(
   );
 }
 
+function getRecordCashSales(record: DailyRecord) {
+  if (!record.orders) {
+    return record.cashSales;
+  }
+
+  return getPaymentTotals(record.orders, record.giftCardSales ?? []).cashSales;
+}
+
+function getRecordCardSales(record: DailyRecord) {
+  if (!record.orders) {
+    return record.cardSales;
+  }
+
+  return getPaymentTotals(record.orders, record.giftCardSales ?? []).cardSales;
+}
+
+function getRecordCommissionTotal(record: DailyRecord) {
+  if (record.orders) {
+    return record.orders.reduce(
+      (sum, order) => sum + getOrderCommission(order),
+      0,
+    );
+  }
+
+  return record.commissions.reduce((sum, entry) => sum + entry.amount, 0);
+}
+
 function getOrderRevenue(order: EmployeeOrder) {
   if (
     (order.paymentMethod ?? "card") === "split" ||
@@ -1368,6 +1390,67 @@ function getOrderRevenue(order: EmployeeOrder) {
   }
 
   return Math.max(0, grossAmount - (order.giftCardAmount ?? 0));
+}
+
+function getPaymentTotals(orders: EmployeeOrder[], giftCardSales: GiftCardSale[]) {
+  return {
+    cashSales:
+      orders.reduce((sum, order) => {
+        const method = order.paymentMethod ?? "card";
+
+        if (method === "cash") {
+          return sum + getOrderRevenue(order);
+        }
+
+        if (method === "split") {
+          return sum + (order.cashAmount ?? 0);
+        }
+
+        if (method === "gift-card") {
+          if (order.giftCardRemainderMethod === "cash") {
+            return sum + getOrderRevenue(order);
+          }
+
+          if (order.giftCardRemainderMethod === "split") {
+            return sum + (order.cashAmount ?? 0);
+          }
+        }
+
+        return sum;
+      }, 0) +
+      giftCardSales
+        .filter((sale) => sale.paymentMethod === "cash")
+        .reduce((sum, sale) => sum + sale.amount, 0),
+    cardSales:
+      orders.reduce((sum, order) => {
+        const method = order.paymentMethod ?? "card";
+
+        if (method === "card") {
+          return sum + getOrderRevenue(order);
+        }
+
+        if (method === "split") {
+          return sum + (order.cardAmount ?? 0);
+        }
+
+        if (method === "gift-card") {
+          if (order.giftCardRemainderMethod === "cash") {
+            return sum;
+          }
+
+          if (order.giftCardRemainderMethod === "split") {
+            return sum + (order.cardAmount ?? 0);
+          }
+
+          return sum + getOrderRevenue(order);
+        }
+
+        return sum;
+      }, 0) +
+      giftCardSales
+        .filter((sale) => sale.paymentMethod === "card")
+        .reduce((sum, sale) => sum + sale.amount, 0),
+  };
 }
 
 function getOrderCommission(order: EmployeeOrder) {

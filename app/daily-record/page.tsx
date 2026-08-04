@@ -545,9 +545,15 @@ export default function DailyRecordPage() {
         paymentMethod === "gift-card" ? giftCardRemainderMethod : undefined,
       discountAmount: Math.max(0, toAmount(discountAmount)),
       cashAmount:
-        paymentMethod === "split" ? Math.max(0, toAmount(splitCashAmount)) : 0,
+        paymentMethod === "split" ||
+        (paymentMethod === "gift-card" && giftCardRemainderMethod === "split")
+          ? Math.max(0, toAmount(splitCashAmount))
+          : 0,
       cardAmount:
-        paymentMethod === "split" ? Math.max(0, toAmount(splitCardAmount)) : 0,
+        paymentMethod === "split" ||
+        (paymentMethod === "gift-card" && giftCardRemainderMethod === "split")
+          ? Math.max(0, toAmount(splitCardAmount))
+          : 0,
       createdAt:
         orders.find((order) => order.id === editingOrderId)?.createdAt ??
         new Date().toISOString(),
