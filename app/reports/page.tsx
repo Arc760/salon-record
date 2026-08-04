@@ -51,6 +51,7 @@ type EmployeeOrder = {
   extras: OrderExtra[];
   paymentMethod?: PaymentMethod;
   giftCardAmount?: number;
+  giftCardRemainderMethod?: "card" | "cash" | "split";
   discountAmount?: number;
   cashAmount?: number;
   cardAmount?: number;
@@ -1349,7 +1350,11 @@ function getLegacyCommissionForEmployee(
 }
 
 function getOrderRevenue(order: EmployeeOrder) {
-  if ((order.paymentMethod ?? "card") === "split") {
+  if (
+    (order.paymentMethod ?? "card") === "split" ||
+    ((order.paymentMethod ?? "card") === "gift-card" &&
+      order.giftCardRemainderMethod === "split")
+  ) {
     return (order.cashAmount ?? 0) + (order.cardAmount ?? 0);
   }
 

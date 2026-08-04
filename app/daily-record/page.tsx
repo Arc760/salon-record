@@ -55,6 +55,7 @@ type EmployeeOrder = {
   extras: OrderExtra[];
   paymentMethod?: PaymentMethod;
   giftCardAmount?: number;
+  giftCardRemainderMethod?: "card" | "cash" | "split";
   discountAmount?: number;
   cashAmount?: number;
   cardAmount?: number;
@@ -88,6 +89,7 @@ type DailyRecord = {
 const EMPLOYEES_KEY = "salon-record-employees";
 const DAILY_RECORDS_KEY = "salon-record-daily-records";
 const MENU_KEY = "salon-record-service-menu";
+const ORDER_DRAFT_KEY = "salon-record-order-draft";
 
 const text = {
   zh: {
@@ -183,6 +185,9 @@ export default function DailyRecordPage() {
   const [discountAmount, setDiscountAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
   const [giftCardAmount, setGiftCardAmount] = useState("");
+  const [giftCardRemainderMethod, setGiftCardRemainderMethod] = useState<
+    "card" | "cash" | "split"
+  >("card");
   const [splitCashAmount, setSplitCashAmount] = useState("");
   const [splitCardAmount, setSplitCardAmount] = useState("");
   const [giftCardSaleAmount, setGiftCardSaleAmount] = useState("");
@@ -219,6 +224,11 @@ export default function DailyRecordPage() {
     noCommission: language === "en" ? "No commission" : "无提成",
   };
 
+  const orderDraftLabels = {
+    clearDraft: language === "en" ? "Clear" : "清空",
+    remainingPayment: language === "en" ? "Remaining Payment" : "剩余付款",
+  };
+
   useEffect(() => {
     const loadData = window.setTimeout(() => {
       const loadedEmployees = readStorage<Employee[]>(EMPLOYEES_KEY, []);
@@ -252,6 +262,47 @@ export default function DailyRecordPage() {
 
     return () => window.clearTimeout(loadRecord);
   }, [selectedRecord]);
+
+  useEffect(() => {
+    if (!showOrderForm || editingOrderId) {
+      return;
+    }
+
+    window.localStorage.setItem(
+      ORDER_DRAFT_KEY,
+      JSON.stringify({
+        employeeId,
+        serviceName,
+        price,
+        commission,
+        extraName,
+        extraPrice,
+        extraCommission,
+        discountAmount,
+        paymentMethod,
+        giftCardAmount,
+        giftCardRemainderMethod,
+        splitCashAmount,
+        splitCardAmount,
+      }),
+    );
+  }, [
+    commission,
+    discountAmount,
+    editingOrderId,
+    employeeId,
+    extraCommission,
+    extraName,
+    extraPrice,
+    giftCardAmount,
+    giftCardRemainderMethod,
+    paymentMethod,
+    price,
+    serviceName,
+    showOrderForm,
+    splitCardAmount,
+    splitCashAmount,
+  ]);
 
   const totals = useMemo(() => {
     const orderSales = orders.reduce((sum, order) => sum + getOrderRevenue(order), 0);
@@ -295,6 +346,24 @@ export default function DailyRecordPage() {
       orderCount: selectedEmployeeOrders.length,
     };
   }, [selectedEmployeeOrders]);
+  const serviceSuggestions = useMemo(() => {
+    const query = serviceName.trim().toLowerCase();
+
+    return query
+      ? activeServices
+          .filter((item) => item.name.toLowerCase().includes(query))
+          .slice(0, 8)
+      : [];
+  }, [activeServices, serviceName]);
+  const extraSuggestions = useMemo(() => {
+    const query = extraName.trim().toLowerCase();
+
+    return query
+      ? activeExtras
+          .filter((item) => item.name.toLowerCase().includes(query))
+          .slice(0, 8)
+      : [];
+  }, [activeExtras, extraName]);
 
   function fillFromService(name: string) {
     setServiceName(name);
@@ -331,12 +400,55 @@ export default function DailyRecordPage() {
     setDiscountAmount("");
     setPaymentMethod("card");
     setGiftCardAmount("");
+    setGiftCardRemainderMethod("card");
     setSplitCashAmount("");
     setSplitCardAmount("");
-    setShowOrderForm(false);
   }
 
   function openAddOrderForm() {
+    resetOrderForm();
+    const draft = readStorage<{
+      employeeId?: string;
+      serviceName?: string;
+      price?: string;
+      commission?: string;
+      extraName?: string;
+      extraPrice?: string;
+      extraCommission?: string;
+      discountAmount?: string;
+      paymentMethod?: PaymentMethod;
+      giftCardAmount?: string;
+      giftCardRemainderMethod?: "card" | "cash" | "split";
+      splitCashAmount?: string;
+      splitCardAmount?: string;
+    } | null>(ORDER_DRAFT_KEY, null);
+
+    if (draft) {
+      setEmployeeId(draft.employeeId || employeeId);
+      setServiceName(draft.serviceName ?? "");
+      setPrice(draft.price ?? "");
+      setCommission(draft.commission ?? "");
+      setExtraName(draft.extraName ?? "");
+      setExtraPrice(draft.extraPrice ?? "");
+      setExtraCommission(draft.extraCommission ?? "");
+      setDiscountAmount(draft.discountAmount ?? "");
+      setPaymentMethod(draft.paymentMethod ?? "card");
+      setGiftCardAmount(draft.giftCardAmount ?? "");
+      setGiftCardRemainderMethod(draft.giftCardRemainderMethod ?? "card");
+      setSplitCashAmount(draft.splitCashAmount ?? "");
+      setSplitCardAmount(draft.splitCardAmount ?? "");
+    }
+
+    setShowOrderForm(true);
+  }
+
+  function closeOrderForm() {
+    setShowOrderForm(false);
+    setEditingOrderId(null);
+  }
+
+  function clearOrderDraft() {
+    window.localStorage.removeItem(ORDER_DRAFT_KEY);
     resetOrderForm();
     setShowOrderForm(true);
   }
@@ -364,6 +476,7 @@ export default function DailyRecordPage() {
         ? String(order.giftCardAmount)
         : "",
     );
+    setGiftCardRemainderMethod(order.giftCardRemainderMethod ?? "card");
     setSplitCashAmount(
       order.cashAmount && order.cashAmount > 0 ? String(order.cashAmount) : "",
     );
@@ -413,6 +526,8 @@ export default function DailyRecordPage() {
       paymentMethod,
       giftCardAmount:
         paymentMethod === "gift-card" ? Math.max(0, toAmount(giftCardAmount)) : 0,
+      giftCardRemainderMethod:
+        paymentMethod === "gift-card" ? giftCardRemainderMethod : undefined,
       discountAmount: Math.max(0, toAmount(discountAmount)),
       cashAmount:
         paymentMethod === "split" ? Math.max(0, toAmount(splitCashAmount)) : 0,
@@ -430,7 +545,9 @@ export default function DailyRecordPage() {
           )
         : [...currentOrders, nextOrder],
     );
+    window.localStorage.removeItem(ORDER_DRAFT_KEY);
     resetOrderForm();
+    setShowOrderForm(true);
   }
 
   function addGiftCardSale() {
@@ -589,23 +706,36 @@ export default function DailyRecordPage() {
 
                 {showOrderForm && (
                   <AppModal
-                    onClose={() => setShowOrderForm(false)}
+                    onClose={closeOrderForm}
                     contentClassName="space-y-4 overflow-y-auto p-5"
                   >
                   <FormField label={t.serviceName} htmlFor="service-name">
                     <input
                       id="service-name"
-                      list="service-options"
                       value={serviceName}
                       onChange={(event) => fillFromService(event.target.value)}
                       placeholder={t.servicePlaceholder}
                       className={inputClassName}
                     />
-                    <datalist id="service-options">
-                      {activeServices.map((item) => (
-                        <option key={item.id} value={item.name} />
-                      ))}
-                    </datalist>
+                    {serviceSuggestions.length > 0 && (
+                      <div className="mt-2 max-h-48 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-2">
+                        {serviceSuggestions.map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => fillFromService(item.name)}
+                            className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-sm hover:bg-gray-50"
+                          >
+                            <span className="font-semibold text-gray-900">
+                              {item.name}
+                            </span>
+                            <span className="shrink-0 text-gray-600">
+                              {formatCurrency(item.price)}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </FormField>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <FormField label={t.price} htmlFor="service-price">
@@ -623,17 +753,30 @@ export default function DailyRecordPage() {
                   <FormField label={t.extraName} htmlFor="extra-name">
                     <input
                       id="extra-name"
-                      list="extra-options"
                       value={extraName}
                       onChange={(event) => fillFromExtra(event.target.value)}
                       placeholder={t.extraPlaceholder}
                       className={inputClassName}
                     />
-                    <datalist id="extra-options">
-                      {activeExtras.map((item) => (
-                        <option key={item.id} value={item.name} />
-                      ))}
-                    </datalist>
+                    {extraSuggestions.length > 0 && (
+                      <div className="mt-2 max-h-48 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-2">
+                        {extraSuggestions.map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => fillFromExtra(item.name)}
+                            className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-sm hover:bg-gray-50"
+                          >
+                            <span className="font-semibold text-gray-900">
+                              {item.name}
+                            </span>
+                            <span className="shrink-0 text-gray-600">
+                              {formatCurrency(item.price)}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </FormField>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <FormField label={t.extraPrice} htmlFor="extra-price">
@@ -686,15 +829,48 @@ export default function DailyRecordPage() {
                     </div>
                   </div>
                   {paymentMethod === "gift-card" && (
-                    <FormField label={paymentLabels.giftCardUsed} htmlFor="gift-card-amount">
-                      <MoneyInput
-                        id="gift-card-amount"
-                        value={giftCardAmount}
-                        onChange={setGiftCardAmount}
-                      />
-                    </FormField>
+                    <>
+                      <FormField label={paymentLabels.giftCardUsed} htmlFor="gift-card-amount">
+                        <MoneyInput
+                          id="gift-card-amount"
+                          value={giftCardAmount}
+                          onChange={setGiftCardAmount}
+                        />
+                      </FormField>
+                      <div>
+                        <p className="mb-2 text-sm font-semibold text-gray-800">
+                          {orderDraftLabels.remainingPayment}
+                        </p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            ["card", paymentLabels.card],
+                            ["cash", paymentLabels.cash],
+                            ["split", orderLabels.split],
+                          ].map(([value, label]) => (
+                            <button
+                              key={value}
+                              type="button"
+                              onClick={() =>
+                                setGiftCardRemainderMethod(
+                                  value as "card" | "cash" | "split",
+                                )
+                              }
+                              className={`min-h-11 rounded-xl border px-2 text-sm font-semibold ${
+                                giftCardRemainderMethod === value
+                                  ? "border-gray-900 bg-gray-900 text-white"
+                                  : "border-gray-300 text-gray-700"
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
                   )}
-                  {paymentMethod === "split" && (
+                  {(paymentMethod === "split" ||
+                    (paymentMethod === "gift-card" &&
+                      giftCardRemainderMethod === "split")) && (
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <FormField label={orderLabels.splitCash} htmlFor="split-cash">
                         <MoneyInput
@@ -721,10 +897,17 @@ export default function DailyRecordPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={resetOrderForm}
+                    onClick={closeOrderForm}
                     className="min-h-11 w-full rounded-xl border border-gray-300 px-4 text-sm font-semibold text-gray-700"
                   >
                     {t.close}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearOrderDraft}
+                    className="min-h-11 w-full rounded-xl border border-red-200 px-4 text-sm font-semibold text-red-600"
+                  >
+                    {orderDraftLabels.clearDraft}
                   </button>
                   </AppModal>
                 )}
@@ -1137,6 +1320,13 @@ function getOrderPaidAmount(order: EmployeeOrder) {
     return (order.cashAmount ?? 0) + (order.cardAmount ?? 0);
   }
 
+  if (
+    (order.paymentMethod ?? "card") === "gift-card" &&
+    order.giftCardRemainderMethod === "split"
+  ) {
+    return (order.cashAmount ?? 0) + (order.cardAmount ?? 0);
+  }
+
   const grossAmount = Math.max(
     0,
     getOrderGrossAmount(order) - (order.discountAmount ?? 0),
@@ -1163,6 +1353,16 @@ function getPaymentTotals(orders: EmployeeOrder[], giftCardSales: GiftCardSale[]
           return sum + (order.cashAmount ?? 0);
         }
 
+        if (method === "gift-card") {
+          if (order.giftCardRemainderMethod === "cash") {
+            return sum + getOrderPaidAmount(order);
+          }
+
+          if (order.giftCardRemainderMethod === "split") {
+            return sum + (order.cashAmount ?? 0);
+          }
+        }
+
         return sum;
       }, 0) +
       giftCardSales
@@ -1173,6 +1373,19 @@ function getPaymentTotals(orders: EmployeeOrder[], giftCardSales: GiftCardSale[]
         const method = order.paymentMethod ?? "card";
 
         if (method === "card" || method === "gift-card") {
+          if (
+            method === "gift-card" &&
+            (order.giftCardRemainderMethod === "cash" ||
+              order.giftCardRemainderMethod === "split")
+          ) {
+            return (
+              sum +
+              (order.giftCardRemainderMethod === "split"
+                ? (order.cardAmount ?? 0)
+                : 0)
+            );
+          }
+
           return sum + getOrderPaidAmount(order);
         }
 
