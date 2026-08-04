@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
+import { AppModal } from "../AppModal";
 import { BottomNav } from "../BottomNav";
 import { LanguageSwitcher, useLanguage } from "../useLanguage";
 
@@ -400,10 +401,10 @@ export default function ServicesPage() {
         </button>
 
         {showEditor && (
-          <div className="fixed inset-0 z-50 bg-black/40 px-4 py-6">
+          <AppModal onClose={() => setShowEditor(false)} contentClassName="p-5">
             <form
               onSubmit={submitForm}
-              className="mx-auto flex max-h-full max-w-md flex-col overflow-y-auto rounded-2xl border border-gray-200 bg-white p-5 shadow-xl"
+              className="flex max-h-[calc(88vh-2.5rem)] flex-col overflow-y-auto"
             >
           <FormField label={commissionSearchLabel} htmlFor="commission-search">
             <input
@@ -491,7 +492,7 @@ export default function ServicesPage() {
             </button>
           </div>
             </form>
-          </div>
+          </AppModal>
         )}
 
         <div className="mb-3">
@@ -587,13 +588,11 @@ export default function ServicesPage() {
         )}
 
         {selectedCategory ? (
-          <div
-            className="fixed inset-0 z-50 flex items-end bg-black/40 px-4 pb-4 pt-10 sm:items-center sm:justify-center"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="menu-category-title"
+          <AppModal
+            onClose={() => setSelectedMenuType(null)}
+            labelledBy="menu-category-title"
+            contentClassName="flex flex-col"
           >
-            <div className="max-h-[88vh] w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
               <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
                 <div>
                   <h2
@@ -649,8 +648,7 @@ export default function ServicesPage() {
                   </div>
                 )}
               </div>
-            </div>
-          </div>
+          </AppModal>
         ) : null}
       </div>
       <BottomNav />

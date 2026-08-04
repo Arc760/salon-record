@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { AppModal } from "../AppModal";
 import { BottomNav } from "../BottomNav";
 import { LanguageSwitcher, useLanguage } from "../useLanguage";
 
@@ -503,8 +504,7 @@ export default function EmployeesPage() {
         </div>
 
         {showForm && (
-          <div className="fixed inset-0 z-50 bg-black/40 px-4 py-6">
-            <div className="mx-auto max-h-full max-w-md overflow-y-auto rounded-2xl bg-white shadow-xl">
+          <AppModal onClose={resetForm} contentClassName="overflow-y-auto">
               <EmployeeForm
                 t={t}
                 isEditing={editingEmployeeId !== null}
@@ -522,8 +522,7 @@ export default function EmployeesPage() {
                 onSubmit={handleSubmit}
                 onCancel={resetForm}
               />
-            </div>
-          </div>
+          </AppModal>
         )}
 
         <EmployeeSection
@@ -725,8 +724,10 @@ function EmployeeSection({
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 px-4 py-8">
-          <div className="mx-auto flex max-h-full max-w-md flex-col rounded-2xl bg-white shadow-xl">
+        <AppModal
+          onClose={() => setShowModal(false)}
+          contentClassName="flex flex-col"
+        >
             <div className="flex items-center justify-between border-b border-gray-200 p-4">
               <div>
                 <h2 className="text-lg font-bold text-gray-900">{title}</h2>
@@ -769,8 +770,7 @@ function EmployeeSection({
         </div>
       )}
             </div>
-          </div>
-        </div>
+        </AppModal>
       )}
     </section>
   );

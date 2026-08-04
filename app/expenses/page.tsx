@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { AppModal } from "../AppModal";
 import { LanguageSwitcher, useLanguage } from "../useLanguage";
 
 type Expense = {
@@ -181,10 +182,10 @@ export default function ExpensesPage() {
         </button>
 
         {showForm && (
-          <div className="fixed inset-0 z-50 bg-black/40 px-4 py-6">
+          <AppModal onClose={() => setShowForm(false)} contentClassName="p-5">
             <form
               onSubmit={handleSubmit}
-              className="mx-auto flex max-h-full max-w-md flex-col space-y-5 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-5 shadow-xl"
+              className="flex max-h-[calc(88vh-2.5rem)] flex-col space-y-5 overflow-y-auto"
             >
           <FormField label={t.date} htmlFor="expense-date">
             <input
@@ -267,7 +268,7 @@ export default function ExpensesPage() {
             {closeLabel}
           </button>
             </form>
-          </div>
+          </AppModal>
         )}
 
         <section className="mb-3 rounded-xl bg-amber-50 p-3">
@@ -296,8 +297,10 @@ export default function ExpensesPage() {
         </section>
 
         {showRecordsModal && (
-          <div className="fixed inset-0 z-50 bg-black/40 px-4 py-8">
-            <div className="mx-auto flex max-h-full max-w-md flex-col rounded-2xl bg-white shadow-xl">
+          <AppModal
+            onClose={() => setShowRecordsModal(false)}
+            contentClassName="flex flex-col"
+          >
               <div className="flex items-center justify-between border-b border-gray-200 p-4">
                 <h2 className="text-lg font-bold text-gray-900">{t.records}</h2>
                 <button
@@ -347,8 +350,7 @@ export default function ExpensesPage() {
             </div>
           )}
               </div>
-            </div>
-          </div>
+          </AppModal>
         )}
       </div>
     </main>

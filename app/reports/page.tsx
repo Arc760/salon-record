@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { AppModal } from "../AppModal";
 import { BottomNav } from "../BottomNav";
 import { LanguageSwitcher, useLanguage } from "../useLanguage";
 
@@ -826,8 +827,7 @@ function RevenueModal({
   const totalOrders = sumBy(revenueRows, (row) => row.orderCount);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 px-4 py-8">
-      <div className="mx-auto flex max-h-full max-w-md flex-col rounded-2xl bg-white shadow-xl">
+    <AppModal onClose={onClose} contentClassName="flex flex-col">
         <div className="flex items-start justify-between gap-4 border-b border-gray-200 p-4">
           <div>
             <h2 className="text-lg font-bold text-gray-900">
@@ -876,8 +876,7 @@ function RevenueModal({
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </AppModal>
   );
 }
 
@@ -893,8 +892,7 @@ function ReportListModal({
   children: React.ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 px-4 py-8">
-      <div className="mx-auto flex max-h-full max-w-md flex-col rounded-2xl bg-white shadow-xl">
+    <AppModal onClose={onClose} contentClassName="flex flex-col">
         <div className="flex items-center justify-between border-b border-gray-200 p-4">
           <h2 className="text-lg font-bold text-gray-900">{title}</h2>
           <button
@@ -906,8 +904,7 @@ function ReportListModal({
           </button>
         </div>
         <div className="overflow-y-auto p-4">{children}</div>
-      </div>
-    </div>
+    </AppModal>
   );
 }
 
