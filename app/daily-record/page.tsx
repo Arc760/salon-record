@@ -13,7 +13,21 @@ type Employee = {
 
 type MenuItem = {
   id: string;
-  type: "service" | "hand" | "foot" | "waxing" | "extra";
+  type:
+    | "service"
+    | "hand"
+    | "foot"
+    | "extra"
+    | "pedicure"
+    | "manicures"
+    | "dip-manicures"
+    | "acrylic-nail"
+    | "uv-gel-nail"
+    | "uv-gel-permanent-french"
+    | "kid-services"
+    | "additional-services"
+    | "waxing"
+    | "spa-pedicure";
   name: string;
   price: number;
   commission: number;
@@ -169,10 +183,10 @@ export default function DailyRecordPage() {
   }, []);
 
   const activeServices = menuItems.filter(
-    (item) => item.active && item.type !== "extra",
+    (item) => item.active && !isExtraMenuItem(item),
   );
   const activeExtras = menuItems.filter(
-    (item) => item.active && item.type === "extra",
+    (item) => item.active && isExtraMenuItem(item),
   );
   const selectedRecord = useMemo(
     () => records.find((record) => record.date === date),
@@ -778,6 +792,10 @@ function getOrderCommission(order: EmployeeOrder) {
     order.commission +
     order.extras.reduce((sum, extra) => sum + extra.commission, 0)
   );
+}
+
+function isExtraMenuItem(item: MenuItem) {
+  return item.type === "extra" || item.type === "additional-services";
 }
 
 function readStorage<T>(key: string, fallback: T): T {

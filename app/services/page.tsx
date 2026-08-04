@@ -5,9 +5,19 @@ import { FormEvent, useEffect, useState } from "react";
 import { BottomNav } from "../BottomNav";
 import { LanguageSwitcher, useLanguage } from "../useLanguage";
 
-type MenuType = "hand" | "foot" | "waxing" | "extra";
+type MenuType =
+  | "pedicure"
+  | "manicures"
+  | "dip-manicures"
+  | "acrylic-nail"
+  | "uv-gel-nail"
+  | "uv-gel-permanent-french"
+  | "kid-services"
+  | "additional-services"
+  | "waxing"
+  | "spa-pedicure";
 
-type StoredMenuType = MenuType | "service";
+type StoredMenuType = MenuType | "service" | "hand" | "foot" | "extra";
 
 type MenuItem = {
   id: string;
@@ -24,51 +34,51 @@ const MENU_KEY = "salon-record-service-menu";
 const defaultMenuItems: Array<
   Omit<MenuItem, "active" | "updatedAt">
 > = [
-  { id: "uv-gel-full-set", type: "hand", name: "UV Gel Full Set", price: 55, commission: 0 },
-  { id: "uv-gel-fill-in", type: "hand", name: "UV Gel Fill-In", price: 40, commission: 0 },
-  { id: "uv-gel-full-set-gel-color", type: "hand", name: "UV Gel Full Set + Gel Color", price: 70, commission: 0 },
-  { id: "uv-gel-fill-in-gel-color", type: "hand", name: "UV Gel Fill-In + Gel Color", price: 55, commission: 0 },
-  { id: "gel-x-new-set", type: "hand", name: "Gel X New Set", price: 70, commission: 0 },
-  { id: "gel-x-fill-in", type: "hand", name: "Gel X Fill In", price: 60, commission: 0 },
-  { id: "uv-gel-permanent-french-full-set", type: "hand", name: "UV Gel Permanent French - Full Set", price: 75, commission: 0 },
-  { id: "uv-gel-permanent-french-double-fill-in", type: "hand", name: "UV Gel Permanent French - Double Fill-In", price: 66, commission: 0 },
-  { id: "uv-gel-permanent-french-pink-fill-in", type: "hand", name: "UV Gel Permanent French - Pink Fill-In", price: 55, commission: 0 },
-  { id: "kid-manicure", type: "hand", name: "Kid Manicure", price: 18, commission: 0 },
-  { id: "kid-pedicure", type: "foot", name: "Kid Pedicure", price: 28, commission: 0 },
-  { id: "kid-manicure-pedicure-combo", type: "hand", name: "Kid Manicure & Pedicure Combo", price: 40, commission: 0 },
-  { id: "kid-hand-polish", type: "hand", name: "Kid Hand Polish", price: 10, commission: 0 },
-  { id: "kid-feet-polish", type: "foot", name: "Kid Feet Polish", price: 15, commission: 0 },
-  { id: "kid-hand-feet-polish", type: "hand", name: "Kid Hand and Feet Polish", price: 20, commission: 0 },
-  { id: "regular-color-change-feet", type: "foot", name: "Regular Color Change on Feet", price: 20, commission: 0 },
-  { id: "regular-pedicure", type: "foot", name: "Regular Pedicure", price: 38, commission: 0 },
-  { id: "regular-gel-pedicure", type: "foot", name: "Regular Gel Pedicure", price: 53, commission: 0 },
-  { id: "gel-color-change-feet", type: "foot", name: "Gel Color Change on Feet", price: 35, commission: 0 },
-  { id: "classic-manicure", type: "hand", name: "Classic Manicure", price: 20, commission: 0 },
-  { id: "regular-color-change-hands", type: "hand", name: "Regular Color Change on Hands", price: 15, commission: 0 },
-  { id: "dazzle-manicure", type: "hand", name: "Dazzle Manicure", price: 38, commission: 0 },
-  { id: "gel-manicure", type: "hand", name: "Gel Manicure", price: 38, commission: 0 },
-  { id: "dipped-powder", type: "hand", name: "Dipped Powder", price: 50, commission: 0 },
-  { id: "dipped-nails-extended-tips", type: "hand", name: "Dipped Nails w. Extended Tips", price: 60, commission: 0 },
-  { id: "dipped-nails-french", type: "hand", name: "Dipped Nails w. French", price: 60, commission: 0 },
-  { id: "dipped-nails-french-tips", type: "hand", name: "Dipped Nails French w. Tips", price: 70, commission: 0 },
-  { id: "acrylic-full-set", type: "hand", name: "Acrylic Full Set", price: 45, commission: 0 },
-  { id: "acrylic-fill-in", type: "hand", name: "Acrylic Fill-In", price: 33, commission: 0 },
-  { id: "acrylic-new-set-gel-color", type: "hand", name: "Acrylic New Set w. Gel Color", price: 60, commission: 0 },
-  { id: "acrylic-fill-in-gel-color", type: "hand", name: "Acrylic Fill-In w. Gel Color", price: 48, commission: 0 },
-  { id: "pink-white-full-set", type: "hand", name: "Pink & White Full Set", price: 70, commission: 0 },
-  { id: "pink-white-double-fill-in", type: "hand", name: "Pink & White Double Fill-In", price: 65, commission: 0 },
-  { id: "pink-white-pink-fill-in", type: "hand", name: "Pink & White Pink Fill-In", price: 45, commission: 0 },
-  { id: "gel-color", type: "extra", name: "Gel Color", price: 15, commission: 0 },
-  { id: "french", type: "extra", name: "French", price: 10, commission: 0 },
-  { id: "coffin-almond-pointy-shape", type: "extra", name: "Coffin / Almond / Pointy Shape", price: 5, commission: 0 },
-  { id: "soak-off", type: "extra", name: "Soak Off", price: 15, commission: 0 },
-  { id: "nail-repair-per-nail", type: "extra", name: "Nail Repair (Charged Per Nail)", price: 10, commission: 0 },
-  { id: "paraffin-waxing-hands", type: "extra", name: "Paraffin Waxing For Hands", price: 10, commission: 0 },
-  { id: "hand-mask", type: "extra", name: "Hand Mask", price: 10, commission: 0 },
-  { id: "paraffin-waxing-feet", type: "extra", name: "Paraffin Waxing For Feet", price: 15, commission: 0 },
-  { id: "feet-mask", type: "extra", name: "Feet Mask", price: 15, commission: 0 },
-  { id: "callus-treatment", type: "extra", name: "Callus Treatment", price: 12, commission: 0 },
-  { id: "shiny-buff", type: "extra", name: "Shiny Buff", price: 8, commission: 0 },
+  { id: "uv-gel-full-set", type: "uv-gel-nail", name: "UV Gel Full Set", price: 55, commission: 0 },
+  { id: "uv-gel-fill-in", type: "uv-gel-nail", name: "UV Gel Fill-In", price: 40, commission: 0 },
+  { id: "uv-gel-full-set-gel-color", type: "uv-gel-nail", name: "UV Gel Full Set + Gel Color", price: 70, commission: 0 },
+  { id: "uv-gel-fill-in-gel-color", type: "uv-gel-nail", name: "UV Gel Fill-In + Gel Color", price: 55, commission: 0 },
+  { id: "gel-x-new-set", type: "uv-gel-nail", name: "Gel X New Set", price: 70, commission: 0 },
+  { id: "gel-x-fill-in", type: "uv-gel-nail", name: "Gel X Fill In", price: 60, commission: 0 },
+  { id: "uv-gel-permanent-french-full-set", type: "uv-gel-permanent-french", name: "UV Gel Permanent French - Full Set", price: 75, commission: 0 },
+  { id: "uv-gel-permanent-french-double-fill-in", type: "uv-gel-permanent-french", name: "UV Gel Permanent French - Double Fill-In", price: 66, commission: 0 },
+  { id: "uv-gel-permanent-french-pink-fill-in", type: "uv-gel-permanent-french", name: "UV Gel Permanent French - Pink Fill-In", price: 55, commission: 0 },
+  { id: "kid-manicure", type: "kid-services", name: "Kid Manicure", price: 18, commission: 0 },
+  { id: "kid-pedicure", type: "kid-services", name: "Kid Pedicure", price: 28, commission: 0 },
+  { id: "kid-manicure-pedicure-combo", type: "kid-services", name: "Kid Manicure & Pedicure Combo", price: 40, commission: 0 },
+  { id: "kid-hand-polish", type: "kid-services", name: "Kid Hand Polish", price: 10, commission: 0 },
+  { id: "kid-feet-polish", type: "kid-services", name: "Kid Feet Polish", price: 15, commission: 0 },
+  { id: "kid-hand-feet-polish", type: "kid-services", name: "Kid Hand and Feet Polish", price: 20, commission: 0 },
+  { id: "regular-color-change-feet", type: "pedicure", name: "Regular Color Change on Feet", price: 20, commission: 0 },
+  { id: "regular-pedicure", type: "pedicure", name: "Regular Pedicure", price: 38, commission: 0 },
+  { id: "regular-gel-pedicure", type: "pedicure", name: "Regular Gel Pedicure", price: 53, commission: 0 },
+  { id: "gel-color-change-feet", type: "pedicure", name: "Gel Color Change on Feet", price: 35, commission: 0 },
+  { id: "classic-manicure", type: "manicures", name: "Classic Manicure", price: 20, commission: 0 },
+  { id: "regular-color-change-hands", type: "manicures", name: "Regular Color Change on Hands", price: 15, commission: 0 },
+  { id: "dazzle-manicure", type: "manicures", name: "Dazzle Manicure", price: 38, commission: 0 },
+  { id: "gel-manicure", type: "manicures", name: "Gel Manicure", price: 38, commission: 0 },
+  { id: "dipped-powder", type: "dip-manicures", name: "Dipped Powder", price: 50, commission: 0 },
+  { id: "dipped-nails-extended-tips", type: "dip-manicures", name: "Dipped Nails w. Extended Tips", price: 60, commission: 0 },
+  { id: "dipped-nails-french", type: "dip-manicures", name: "Dipped Nails w. French", price: 60, commission: 0 },
+  { id: "dipped-nails-french-tips", type: "dip-manicures", name: "Dipped Nails French w. Tips", price: 70, commission: 0 },
+  { id: "acrylic-full-set", type: "acrylic-nail", name: "Acrylic Full Set", price: 45, commission: 0 },
+  { id: "acrylic-fill-in", type: "acrylic-nail", name: "Acrylic Fill-In", price: 33, commission: 0 },
+  { id: "acrylic-new-set-gel-color", type: "acrylic-nail", name: "Acrylic New Set w. Gel Color", price: 60, commission: 0 },
+  { id: "acrylic-fill-in-gel-color", type: "acrylic-nail", name: "Acrylic Fill-In w. Gel Color", price: 48, commission: 0 },
+  { id: "pink-white-full-set", type: "acrylic-nail", name: "Pink & White Full Set", price: 70, commission: 0 },
+  { id: "pink-white-double-fill-in", type: "acrylic-nail", name: "Pink & White Double Fill-In", price: 65, commission: 0 },
+  { id: "pink-white-pink-fill-in", type: "acrylic-nail", name: "Pink & White Pink Fill-In", price: 45, commission: 0 },
+  { id: "gel-color", type: "additional-services", name: "Gel Color", price: 15, commission: 0 },
+  { id: "french", type: "additional-services", name: "French", price: 10, commission: 0 },
+  { id: "coffin-almond-pointy-shape", type: "additional-services", name: "Coffin / Almond / Pointy Shape", price: 5, commission: 0 },
+  { id: "soak-off", type: "additional-services", name: "Soak Off", price: 15, commission: 0 },
+  { id: "nail-repair-per-nail", type: "additional-services", name: "Nail Repair (Charged Per Nail)", price: 10, commission: 0 },
+  { id: "paraffin-waxing-hands", type: "additional-services", name: "Paraffin Waxing For Hands", price: 10, commission: 0 },
+  { id: "hand-mask", type: "additional-services", name: "Hand Mask", price: 10, commission: 0 },
+  { id: "paraffin-waxing-feet", type: "additional-services", name: "Paraffin Waxing For Feet", price: 15, commission: 0 },
+  { id: "feet-mask", type: "additional-services", name: "Feet Mask", price: 15, commission: 0 },
+  { id: "callus-treatment", type: "additional-services", name: "Callus Treatment", price: 12, commission: 0 },
+  { id: "shiny-buff", type: "additional-services", name: "Shiny Buff", price: 8, commission: 0 },
   { id: "waxing-eyebrow", type: "waxing", name: "Eyebrow Waxing", price: 15, commission: 0 },
   { id: "waxing-lips", type: "waxing", name: "Lips Waxing", price: 10, commission: 0 },
   { id: "waxing-chin", type: "waxing", name: "Chin Waxing", price: 10, commission: 0 },
@@ -82,11 +92,11 @@ const defaultMenuItems: Array<
   { id: "waxing-brazilian", type: "waxing", name: "Brazilian Waxing", price: 50, commission: 0 },
   { id: "waxing-half-leg", type: "waxing", name: "Half Leg Waxing", price: 35, commission: 0 },
   { id: "waxing-full-leg", type: "waxing", name: "Full Leg Waxing", price: 50, commission: 0 },
-  { id: "silver-spa", type: "foot", name: "Silver Spa", price: 51, commission: 0 },
-  { id: "gold-spa", type: "foot", name: "Gold Spa", price: 61, commission: 0 },
-  { id: "platinum-spa", type: "foot", name: "Platinum Spa", price: 71, commission: 0 },
-  { id: "diamond-spa", type: "foot", name: "Diamond Spa", price: 85, commission: 0 },
-  { id: "premium-heated-foot-mitts-foot-mask", type: "extra", name: "Premium Heated Foot Mitts and Foot Mask", price: 0, commission: 0 },
+  { id: "silver-spa", type: "spa-pedicure", name: "Silver Spa", price: 51, commission: 0 },
+  { id: "gold-spa", type: "spa-pedicure", name: "Gold Spa", price: 61, commission: 0 },
+  { id: "platinum-spa", type: "spa-pedicure", name: "Platinum Spa", price: 71, commission: 0 },
+  { id: "diamond-spa", type: "spa-pedicure", name: "Diamond Spa", price: 85, commission: 0 },
+  { id: "premium-heated-foot-mitts-foot-mask", type: "spa-pedicure", name: "Premium Heated Foot Mitts and Foot Mask", price: 0, commission: 0 },
 ];
 
 const menuNameTranslations: Record<string, string> = {
@@ -155,6 +165,8 @@ const menuNameTranslations: Record<string, string> = {
   "premium-heated-foot-mitts-foot-mask": "高级加热脚套和脚膜",
 };
 
+void menuNameTranslations;
+
 const text = {
   zh: {
     back: "← 返回首页",
@@ -215,7 +227,7 @@ export default function ServicesPage() {
   const [selectedMenuType, setSelectedMenuType] = useState<MenuType | null>(
     null,
   );
-  const [type, setType] = useState<MenuType>("hand");
+  const [type, setType] = useState<MenuType>("pedicure");
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [commission, setCommission] = useState("");
@@ -223,11 +235,11 @@ export default function ServicesPage() {
   const [search, setSearch] = useState("");
   const commissionSearchResults = commissionSearch.trim()
     ? items
-        .filter((item) => matchesMenuItemSearch(item, commissionSearch, language))
+        .filter((item) => matchesMenuItemSearch(item, commissionSearch))
         .slice(0, 8)
     : [];
   const filteredItems = search.trim()
-    ? items.filter((item) => matchesMenuItemSearch(item, search, language))
+    ? items.filter((item) => matchesMenuItemSearch(item, search))
     : items;
   const categories = getMenuCategories(t);
   const selectedCategory = categories.find(
@@ -235,7 +247,7 @@ export default function ServicesPage() {
   );
   const selectedItems = selectedMenuType
     ? filteredItems.filter(
-        (item) => normalizeMenuType(item.type) === selectedMenuType,
+        (item) => getMenuItemCategory(item) === selectedMenuType,
       )
     : [];
   const itemCountLabel = language === "zh" ? "项目" : "items";
@@ -251,7 +263,7 @@ export default function ServicesPage() {
   const visibleCategories = search.trim()
     ? categories.filter((category) =>
         filteredItems.some(
-          (item) => normalizeMenuType(item.type) === category.type,
+          (item) => getMenuItemCategory(item) === category.type,
         ),
       )
     : categories;
@@ -281,7 +293,7 @@ export default function ServicesPage() {
 
   function resetForm() {
     setEditingId(null);
-    setType("hand");
+    setType("pedicure");
     setName("");
     setPrice("");
     setCommission("");
@@ -342,11 +354,11 @@ export default function ServicesPage() {
 
   function editItem(item: MenuItem) {
     setEditingId(item.id);
-    setType(normalizeMenuType(item.type));
+    setType(getMenuItemCategory(item));
     setName(item.name);
     setPrice(String(item.price));
     setCommission(item.commission === 0 ? "" : String(item.commission));
-    setCommissionSearch(getMenuItemDisplayName(item, language));
+    setCommissionSearch(item.name);
     setSelectedMenuType(null);
     setShowEditor(true);
   }
@@ -413,7 +425,7 @@ export default function ServicesPage() {
                   >
                     <span>
                       <span className="block font-semibold text-gray-900">
-                        {getMenuItemDisplayName(item, language)}
+                        {getMenuItemDisplayName(item)}
                       </span>
                       <span className="block text-xs text-gray-500">
                         {menuTypeLabel(item.type, t)}
@@ -435,10 +447,11 @@ export default function ServicesPage() {
               onChange={(event) => setType(event.target.value as MenuType)}
               className={inputClassName}
             >
-              <option value="hand">{t.hand}</option>
-              <option value="foot">{t.foot}</option>
-              <option value="waxing">{t.waxing}</option>
-              <option value="extra">{t.extra}</option>
+              {categories.map((category) => (
+                <option key={category.type} value={category.type}>
+                  {category.label}
+                </option>
+              ))}
             </select>
           </FormField>
           <FormField label={t.name} htmlFor="menu-name">
@@ -507,7 +520,7 @@ export default function ServicesPage() {
             <section className="grid shrink-0 grid-cols-2 gap-3">
               {visibleCategories.map((category) => {
                 const categoryItems = filteredItems.filter(
-                  (item) => normalizeMenuType(item.type) === category.type,
+                  (item) => getMenuItemCategory(item) === category.type,
                 );
 
                 return (
@@ -539,7 +552,7 @@ export default function ServicesPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-bold text-gray-900">
-                      {getMenuItemDisplayName(item, language)}
+                      {getMenuItemDisplayName(item)}
                     </p>
                     <p className="mt-1 text-sm text-gray-500">
                       {menuTypeLabel(item.type, t)} ·{" "}
@@ -618,7 +631,7 @@ export default function ServicesPage() {
                         <span className="block">
                           <span className="block">
                             <span className="line-clamp-2 block text-sm font-bold text-gray-900">
-                              {getMenuItemDisplayName(item, language)}
+                              {getMenuItemDisplayName(item)}
                             </span>
                             <span className="mt-1 block text-xs text-gray-500">
                               {item.active ? t.active : t.inactive}
@@ -731,10 +744,16 @@ const inputClassName =
   "min-h-12 w-full rounded-xl border border-gray-300 bg-white px-4 text-base text-gray-900 outline-none focus:border-gray-900";
 
 function mergeDefaultMenuItems(savedItems: MenuItem[]) {
+  const defaultsById = new Map(defaultMenuItems.map((item) => [item.id, item]));
+  const migratedItems = savedItems.map((item) => {
+    const defaultItem = defaultsById.get(item.id);
+
+    return defaultItem ? { ...item, type: defaultItem.type } : item;
+  });
   const existingIds = new Set(savedItems.map((item) => item.id));
   const existingKeys = new Set(
-    savedItems.map(
-      (item) => `${normalizeMenuType(item.type)}|${item.name.trim().toLowerCase()}`,
+    migratedItems.map(
+      (item) => `${getMenuItemCategory(item)}|${item.name.trim().toLowerCase()}`,
     ),
   );
   const now = new Date().toISOString();
@@ -750,56 +769,85 @@ function mergeDefaultMenuItems(savedItems: MenuItem[]) {
       updatedAt: now,
     }));
 
-  return [...savedItems, ...missingItems].sort((a, b) =>
+  return [...migratedItems, ...missingItems].sort((a, b) =>
     a.name.localeCompare(b.name),
   );
 }
 
 function normalizeMenuType(type: StoredMenuType): MenuType {
-  return type === "service" ? "hand" : type;
+  if (isMenuType(type)) {
+    return type;
+  }
+
+  if (type === "foot") {
+    return "pedicure";
+  }
+
+  if (type === "extra") {
+    return "additional-services";
+  }
+
+  return "manicures";
+}
+
+function getMenuItemCategory(item: MenuItem): MenuType {
+  const defaultItem = defaultMenuItems.find(
+    (menuItem) => menuItem.id === item.id,
+  );
+
+  return defaultItem ? normalizeMenuType(defaultItem.type) : normalizeMenuType(item.type);
+}
+
+function isMenuType(type: StoredMenuType): type is MenuType {
+  return [
+    "pedicure",
+    "manicures",
+    "dip-manicures",
+    "acrylic-nail",
+    "uv-gel-nail",
+    "uv-gel-permanent-french",
+    "kid-services",
+    "additional-services",
+    "waxing",
+    "spa-pedicure",
+  ].includes(type);
 }
 
 function getMenuCategories(t: (typeof text)["zh"]) {
+  void t;
+
   return [
-    { type: "hand" as const, label: t.hand },
-    { type: "foot" as const, label: t.foot },
-    { type: "waxing" as const, label: t.waxing },
-    { type: "extra" as const, label: t.extra },
+    { type: "pedicure" as const, label: "PEDICURE" },
+    { type: "manicures" as const, label: "MANICURES" },
+    { type: "dip-manicures" as const, label: "DIP MANICURES" },
+    { type: "acrylic-nail" as const, label: "ACRYLIC NAIL" },
+    { type: "uv-gel-nail" as const, label: "UV GEL NAIL" },
+    { type: "uv-gel-permanent-french" as const, label: "UV GEL PERMANENT FRENCH" },
+    { type: "kid-services" as const, label: "KID SERVICES" },
+    { type: "additional-services" as const, label: "ADDITIONAL SERVICES" },
+    { type: "waxing" as const, label: "WAXING" },
+    { type: "spa-pedicure" as const, label: "SPA PEDICURE" },
   ];
 }
 
-function getMenuItemDisplayName(item: MenuItem, language: "zh" | "en") {
-  return language === "zh" ? menuNameTranslations[item.id] ?? item.name : item.name;
+function getMenuItemDisplayName(item: MenuItem) {
+  return item.name;
 }
 
 function matchesMenuItemSearch(
   item: MenuItem,
   searchText: string,
-  language: "zh" | "en",
 ) {
   const normalizedSearch = searchText.trim().toLowerCase();
-  const displayName = getMenuItemDisplayName(item, language).toLowerCase();
-  const storedName = item.name.toLowerCase();
+  const displayName = getMenuItemDisplayName(item).toLowerCase();
 
-  return displayName.includes(normalizedSearch) || storedName.includes(normalizedSearch);
+  return displayName.includes(normalizedSearch);
 }
 
 function menuTypeLabel(type: StoredMenuType, t: (typeof text)["zh"]) {
   const normalizedType = normalizeMenuType(type);
-
-  if (normalizedType === "hand") {
-    return t.hand;
-  }
-
-  if (normalizedType === "foot") {
-    return t.foot;
-  }
-
-  if (normalizedType === "waxing") {
-    return t.waxing;
-  }
-
-  return t.extra;
+  return getMenuCategories(t).find((category) => category.type === normalizedType)
+    ?.label ?? normalizedType;
 }
 
 function readStorage<T>(key: string, fallback: T): T {
