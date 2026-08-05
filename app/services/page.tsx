@@ -26,6 +26,7 @@ type MenuItem = {
   name: string;
   price: number;
   commission: number;
+  aliases?: string[];
   active: boolean;
   updatedAt: string;
 };
@@ -182,6 +183,8 @@ const text = {
     namePlaceholder: "例如：Gel Manicure",
     price: "价钱",
     commission: "提成",
+    aliases: "搜索简写",
+    aliasesPlaceholder: "例如：fs, fullset",
     save: "保存项目",
     update: "保存修改",
     cancel: "取消",
@@ -191,6 +194,8 @@ const text = {
     edit: "编辑",
     disable: "停用",
     restore: "恢复",
+    delete: "删除",
+    deleteConfirm: "确认删除这个菜单项目吗？删除后不能恢复。",
     invalid: "请输入名称、价钱和提成。",
   },
   en: {
@@ -206,6 +211,8 @@ const text = {
     namePlaceholder: "Example: Gel Manicure",
     price: "Price",
     commission: "Commission",
+    aliases: "Search Shortcuts",
+    aliasesPlaceholder: "Example: fs, fullset",
     save: "Save Item",
     update: "Save Changes",
     cancel: "Cancel",
@@ -215,6 +222,8 @@ const text = {
     edit: "Edit",
     disable: "Disable",
     restore: "Restore",
+    delete: "Delete",
+    deleteConfirm: "Delete this menu item? This cannot be undone.",
     invalid: "Enter a name, price, and commission.",
   },
 };
@@ -232,6 +241,7 @@ export default function ServicesPage() {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [commission, setCommission] = useState("");
+  const [aliases, setAliases] = useState("");
   const [commissionSearch, setCommissionSearch] = useState("");
   const [search, setSearch] = useState("");
   const commissionSearchResults = commissionSearch.trim()
@@ -298,6 +308,7 @@ export default function ServicesPage() {
     setName("");
     setPrice("");
     setCommission("");
+    setAliases("");
     setCommissionSearch("");
     setShowEditor(false);
   }
@@ -330,6 +341,7 @@ export default function ServicesPage() {
                 name: trimmedName,
                 price: numericPrice,
                 commission: numericCommission,
+                aliases: parseAliases(aliases),
                 updatedAt: new Date().toISOString(),
               }
             : item,
@@ -344,6 +356,7 @@ export default function ServicesPage() {
           name: trimmedName,
           price: numericPrice,
           commission: numericCommission,
+          aliases: parseAliases(aliases),
           active: true,
           updatedAt: new Date().toISOString(),
         },
@@ -359,6 +372,7 @@ export default function ServicesPage() {
     setName(item.name);
     setPrice(String(item.price));
     setCommission(item.commission === 0 ? "" : String(item.commission));
+    setAliases((item.aliases ?? []).join(", "));
     setCommissionSearch(item.name);
     setSelectedMenuType(null);
     setShowEditor(true);
@@ -370,6 +384,18 @@ export default function ServicesPage() {
         item.id === itemId ? { ...item, active: !item.active } : item,
       ),
     );
+  }
+
+  function deleteItem(item: MenuItem) {
+    if (!window.confirm(t.deleteConfirm)) {
+      return;
+    }
+
+    saveItems(items.filter((currentItem) => currentItem.id !== item.id));
+
+    if (editingId === item.id) {
+      resetForm();
+    }
   }
 
   return (
@@ -464,6 +490,15 @@ export default function ServicesPage() {
               className={inputClassName}
             />
           </FormField>
+          <FormField label={t.aliases} htmlFor="menu-aliases">
+            <input
+              id="menu-aliases"
+              value={aliases}
+              onChange={(event) => setAliases(event.target.value)}
+              placeholder={t.aliasesPlaceholder}
+              className={inputClassName}
+            />
+          </FormField>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <FormField label={t.price} htmlFor="menu-price">
               <MoneyInput id="menu-price" value={price} onChange={setPrice} />
@@ -476,7 +511,7 @@ export default function ServicesPage() {
               />
             </FormField>
           </div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <button
               type="submit"
               className="min-h-12 rounded-xl bg-gray-900 px-5 text-base font-semibold text-white"
@@ -490,6 +525,21 @@ export default function ServicesPage() {
             >
               {t.cancel}
             </button>
+            {editingId && (
+              <button
+                type="button"
+                onClick={() => {
+                  const item = items.find((menuItem) => menuItem.id === editingId);
+
+                  if (item) {
+                    deleteItem(item);
+                  }
+                }}
+                className="min-h-12 rounded-xl border border-red-200 px-5 text-base font-semibold text-red-600"
+              >
+                {t.delete}
+              </button>
+            )}
           </div>
             </form>
           </AppModal>
@@ -643,6 +693,11 @@ export default function ServicesPage() {
                         <span className="mt-1 block rounded-lg bg-gray-50 px-2 py-1 text-xs font-semibold text-gray-900">
                           {t.commission} {formatCurrency(item.commission)}
                         </span>
+                        {(item.aliases ?? []).length > 0 && (
+                          <span className="mt-1 block rounded-lg bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-800">
+                            {t.aliases} {(item.aliases ?? []).join(", ")}
+                          </span>
+                        )}
                       </button>
                     ))}
                   </div>
@@ -836,10 +891,70 @@ function matchesMenuItemSearch(
   item: MenuItem,
   searchText: string,
 ) {
-  const normalizedSearch = searchText.trim().toLowerCase();
-  const displayName = getMenuItemDisplayName(item).toLowerCase();
+  const normalizedSearch = normalizeSearchText(searchText);
 
-  return displayName.includes(normalizedSearch);
+  if (!normalizedSearch) {
+    return false;
+  }
+
+  const aliases = getMenuAliases(item).map(normalizeSearchText);
+
+  if (normalizedSearch.length <= 2) {
+    return aliases.some((alias) => alias === normalizedSearch);
+  }
+
+  const searchableText = [
+    getMenuItemDisplayName(item),
+    item.name,
+    item.id,
+    item.type,
+    ...aliases,
+  ]
+    .map(normalizeSearchText)
+    .join(" ");
+
+  return searchableText.includes(normalizedSearch);
+}
+
+function getMenuAliases(item: MenuItem) {
+  const aliases = new Set<string>(item.aliases ?? []);
+  const normalizedName = normalizeSearchText(item.name);
+
+  aliases.add(getInitials(item.name));
+
+  if (normalizedName.includes("full set")) {
+    aliases.add("fs");
+  }
+
+  if (normalizedName.includes("fill in")) {
+    aliases.add("fi");
+  }
+
+  return [...aliases].filter(Boolean);
+}
+
+function parseAliases(value: string) {
+  return [
+    ...new Set(
+      value
+        .split(/[,，\s]+/)
+        .map((alias) => normalizeSearchText(alias))
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function getInitials(value: string) {
+  return value
+    .split(/[^a-zA-Z0-9]+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .toLowerCase();
+}
+
+function normalizeSearchText(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 function menuTypeLabel(type: StoredMenuType, t: (typeof text)["zh"]) {

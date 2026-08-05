@@ -32,6 +32,7 @@ type MenuItem = {
   name: string;
   price: number;
   commission: number;
+  aliases?: string[];
   active: boolean;
 };
 
@@ -1497,10 +1498,18 @@ function menuItemMatchesQuery(item: MenuItem, query: string) {
 }
 
 function getMenuAliases(item: MenuItem) {
-  const aliases = new Set<string>();
+  const aliases = new Set<string>(item.aliases ?? []);
   const normalizedName = normalizeSearchText(item.name);
 
   aliases.add(getInitials(item.name));
+
+  if (normalizedName.includes("full set")) {
+    aliases.add("fs");
+  }
+
+  if (normalizedName.includes("fill in")) {
+    aliases.add("fi");
+  }
 
   if (normalizedName.includes("dipped")) {
     aliases.add("dip");
