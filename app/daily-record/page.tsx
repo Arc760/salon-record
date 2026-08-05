@@ -70,6 +70,18 @@ type GiftCardSale = {
   createdAt: string;
 };
 
+type CategoryKey = "rent" | "supplies" | "payroll" | "utilities" | "marketing" | "other";
+
+type Expense = {
+  id: string;
+  date: string;
+  category: CategoryKey;
+  amount: number;
+  vendor: string;
+  note: string;
+  createdAt: string;
+};
+
 type CommissionEntry = {
   employeeId: string;
   employeeName: string;
@@ -89,8 +101,17 @@ type DailyRecord = {
 
 const EMPLOYEES_KEY = "salon-record-employees";
 const DAILY_RECORDS_KEY = "salon-record-daily-records";
+const EXPENSES_KEY = "salon-record-expenses";
 const MENU_KEY = "salon-record-service-menu";
 const ORDER_DRAFT_KEY = "salon-record-order-draft";
+const categoryKeys: CategoryKey[] = [
+  "rent",
+  "supplies",
+  "payroll",
+  "utilities",
+  "marketing",
+  "other",
+];
 
 const text = {
   zh: {
@@ -129,6 +150,24 @@ const text = {
     revenue: "营业额",
     close: "关闭",
     totalOrders: "总单数",
+    expense: "支出",
+    addExpense: "添加支出",
+    expenseDate: "支出日期",
+    expenseCategory: "支出分类",
+    expenseAmount: "金额",
+    expenseVendor: "商家 / 用途",
+    expenseVendorPlaceholder: "例如：甲油采购",
+    expenseNote: "支出备注",
+    expenseSaved: "支出已保存，会显示在支出记录里。",
+    invalidExpense: "请选择日期并输入正确的支出金额。",
+    categories: {
+      rent: "房租",
+      supplies: "材料",
+      payroll: "工资",
+      utilities: "水电",
+      marketing: "营销",
+      other: "其他",
+    },
   },
   en: {
     back: "← Back Home",
@@ -166,6 +205,24 @@ const text = {
     revenue: "Revenue",
     close: "Close",
     totalOrders: "Total Orders",
+    expense: "Expense",
+    addExpense: "Add Expense",
+    expenseDate: "Expense Date",
+    expenseCategory: "Category",
+    expenseAmount: "Amount",
+    expenseVendor: "Vendor / Purpose",
+    expenseVendorPlaceholder: "For example: nail polish purchase",
+    expenseNote: "Expense Note",
+    expenseSaved: "Expense saved. It will show in expense records.",
+    invalidExpense: "Choose a date and enter a valid expense amount.",
+    categories: {
+      rent: "Rent",
+      supplies: "Supplies",
+      payroll: "Payroll",
+      utilities: "Utilities",
+      marketing: "Marketing",
+      other: "Other",
+    },
   },
 };
 
@@ -175,6 +232,7 @@ export default function DailyRecordPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [records, setRecords] = useState<DailyRecord[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [date, setDate] = useState(getTodayDate());
   const [note, setNote] = useState("");
   const [orders, setOrders] = useState<EmployeeOrder[]>([]);
@@ -202,6 +260,11 @@ export default function DailyRecordPage() {
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [showGiftCardForm, setShowGiftCardForm] = useState(false);
+  const [showExpenseForm, setShowExpenseForm] = useState(false);
+  const [expenseCategory, setExpenseCategory] = useState<CategoryKey>("supplies");
+  const [expenseAmount, setExpenseAmount] = useState("");
+  const [expenseVendor, setExpenseVendor] = useState("");
+  const [expenseNote, setExpenseNote] = useState("");
   const paymentLabels = {
     paymentMethod: language === "en" ? "Payment Method" : "支付方式",
     card: language === "en" ? "Card" : "刷卡",
@@ -237,6 +300,7 @@ export default function DailyRecordPage() {
       setEmployeeId(loadedEmployees[0]?.id ?? "");
       setMenuItems(readStorage<MenuItem[]>(MENU_KEY, []));
       setRecords(readStorage<DailyRecord[]>(DAILY_RECORDS_KEY, []));
+      setExpenses(readStorage<Expense[]>(EXPENSES_KEY, []));
     }, 0);
 
     return () => window.clearTimeout(loadData);
@@ -347,6 +411,13 @@ export default function DailyRecordPage() {
   const selectedEmployee = employees.find((employee) => employee.id === employeeId);
   const selectedEmployeeOrders = orders.filter(
     (order) => order.employeeId === employeeId,
+  );
+  const selectedDateExpenseTotal = useMemo(
+    () =>
+      expenses
+        .filter((expense) => expense.date === date)
+        .reduce((sum, expense) => sum + expense.amount, 0),
+    [date, expenses],
   );
   const selectedEmployeeTotals = useMemo(() => {
     const sales = selectedEmployeeOrders.reduce(
@@ -591,6 +662,45 @@ export default function DailyRecordPage() {
     setGiftCardSaleAmount("");
     setGiftCardSalePaymentMethod("card");
     setShowGiftCardForm(false);
+  }
+
+  function saveExpenses(nextExpenses: Expense[]) {
+    const sortedExpenses = [...nextExpenses].sort((a, b) =>
+      b.date.localeCompare(a.date),
+    );
+
+    setExpenses(sortedExpenses);
+    window.localStorage.setItem(EXPENSES_KEY, JSON.stringify(sortedExpenses));
+  }
+
+  function addExpense(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const numericAmount = toAmount(expenseAmount);
+
+    if (!date || numericAmount <= 0) {
+      window.alert(t.invalidExpense);
+      return;
+    }
+
+    saveExpenses([
+      {
+        id: crypto.randomUUID(),
+        date,
+        category: expenseCategory,
+        amount: numericAmount,
+        vendor: expenseVendor.trim(),
+        note: expenseNote.trim(),
+        createdAt: new Date().toISOString(),
+      },
+      ...expenses,
+    ]);
+    setExpenseCategory("supplies");
+    setExpenseAmount("");
+    setExpenseVendor("");
+    setExpenseNote("");
+    setShowExpenseForm(false);
+    window.alert(t.expenseSaved);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -1061,6 +1171,26 @@ export default function DailyRecordPage() {
             </AppModal>
           )}
 
+          <section className="rounded-xl border border-gray-200 p-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-base font-bold text-gray-900">
+                  {t.expense}
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  {date}: {formatCurrency(selectedDateExpenseTotal)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowExpenseForm(true)}
+                className="min-h-11 rounded-xl border border-gray-300 px-4 text-sm font-semibold text-gray-700"
+              >
+                {t.addExpense}
+              </button>
+            </div>
+          </section>
+
           {legacyCommissions.length > 0 && (
             <section className="rounded-2xl bg-amber-50 p-4">
               <p className="text-sm text-amber-900">
@@ -1113,6 +1243,79 @@ export default function DailyRecordPage() {
             {t.save}
           </button>
         </form>
+
+        {showExpenseForm && (
+          <AppModal
+            onClose={() => setShowExpenseForm(false)}
+            contentClassName="space-y-4 overflow-y-auto p-5"
+          >
+            <form onSubmit={addExpense} className="space-y-4">
+              <FormField label={t.expenseDate} htmlFor="expense-date">
+                <input
+                  id="expense-date"
+                  type="date"
+                  value={date}
+                  onChange={(event) => setDate(event.target.value)}
+                  className={inputClassName}
+                />
+              </FormField>
+              <FormField label={t.expenseCategory} htmlFor="expense-category">
+                <select
+                  id="expense-category"
+                  value={expenseCategory}
+                  onChange={(event) =>
+                    setExpenseCategory(event.target.value as CategoryKey)
+                  }
+                  className={inputClassName}
+                >
+                  {categoryKeys.map((category) => (
+                    <option key={category} value={category}>
+                      {t.categories[category]}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+              <FormField label={t.expenseAmount} htmlFor="expense-amount">
+                <MoneyInput
+                  id="expense-amount"
+                  value={expenseAmount}
+                  onChange={setExpenseAmount}
+                />
+              </FormField>
+              <FormField label={t.expenseVendor} htmlFor="expense-vendor">
+                <input
+                  id="expense-vendor"
+                  value={expenseVendor}
+                  onChange={(event) => setExpenseVendor(event.target.value)}
+                  placeholder={t.expenseVendorPlaceholder}
+                  className={inputClassName}
+                />
+              </FormField>
+              <FormField label={t.expenseNote} htmlFor="expense-note">
+                <textarea
+                  id="expense-note"
+                  value={expenseNote}
+                  onChange={(event) => setExpenseNote(event.target.value)}
+                  rows={3}
+                  className={`${inputClassName} py-3`}
+                />
+              </FormField>
+              <button
+                type="submit"
+                className="min-h-12 w-full rounded-xl bg-gray-900 px-5 text-base font-semibold text-white"
+              >
+                {t.addExpense}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowExpenseForm(false)}
+                className="min-h-12 w-full rounded-xl border border-gray-300 px-5 text-base font-semibold text-gray-700"
+              >
+                {t.close}
+              </button>
+            </form>
+          </AppModal>
+        )}
 
         {showRevenueModal && selectedEmployee && (
           <OrderRevenueModal
