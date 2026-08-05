@@ -1185,7 +1185,7 @@ type EmployeeReport = {
 const mobileInputClassName =
   "min-h-12 w-full min-w-0 max-w-full appearance-none rounded-xl border border-gray-300 bg-white px-3 text-base text-gray-900 outline-none focus:border-gray-900";
 const dateInputClassName =
-  "block min-h-12 w-full min-w-0 max-w-full appearance-none rounded-xl border border-gray-300 bg-white px-3 text-base text-gray-900 outline-none focus:border-gray-900 [box-sizing:border-box]";
+  "block min-h-12 w-full min-w-0 max-w-full appearance-none rounded-xl border border-gray-300 bg-white px-4 text-base font-semibold text-gray-900 outline-none focus:border-gray-900 [box-sizing:border-box]";
 
 function buildEmployeeReport({
   employees,
