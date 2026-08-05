@@ -81,7 +81,7 @@ type Expense = {
 };
 
 type ReportMode = "shop" | "employee";
-type Period = "day" | "week" | "month";
+type Period = "day" | "week" | "month" | "custom";
 type LanguageText = typeof text.zh;
 
 const DAILY_RECORDS_KEY = "salon-record-daily-records";
@@ -188,6 +188,8 @@ export default function ReportsPage() {
   const [mode, setMode] = useState<ReportMode>("shop");
   const [period, setPeriod] = useState<Period>("day");
   const [selectedDate, setSelectedDate] = useState(getTodayDate());
+  const [shopRangeStart, setShopRangeStart] = useState(getTodayDate());
+  const [shopRangeEnd, setShopRangeEnd] = useState(getTodayDate());
   const [rangeStart, setRangeStart] = useState(getTodayDate());
   const [rangeEnd, setRangeEnd] = useState(getTodayDate());
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("all");
@@ -204,7 +206,10 @@ export default function ReportsPage() {
   }, []);
 
   const shopReport = useMemo(() => {
-    const dates = getPeriodDates(selectedDate, period);
+    const dates =
+      period === "custom"
+        ? getDateRange(shopRangeStart, shopRangeEnd)
+        : getPeriodDates(selectedDate, period);
     const dateSet = new Set(dates);
     const filteredRecords = dailyRecords.filter((record) =>
       dateSet.has(record.date),
@@ -250,7 +255,7 @@ export default function ReportsPage() {
       expenseCount: filteredExpenses.length,
       expensesByCategory: groupExpensesByCategory(filteredExpenses),
     };
-  }, [dailyRecords, expenses, period, selectedDate]);
+  }, [dailyRecords, expenses, period, selectedDate, shopRangeEnd, shopRangeStart]);
 
   const employeeQuery = useMemo(
     () => parseEmployeeSearch(employeeSearch, employees),
@@ -321,9 +326,13 @@ export default function ReportsPage() {
           <ShopReportView
             period={period}
             selectedDate={selectedDate}
+            startDate={shopReport.startDate}
+            endDate={shopReport.endDate}
             report={shopReport}
             setPeriod={setPeriod}
             setSelectedDate={setSelectedDate}
+            setStartDate={setShopRangeStart}
+            setEndDate={setShopRangeEnd}
             t={t}
           />
         ) : (
@@ -352,13 +361,19 @@ export default function ReportsPage() {
 function ShopReportView({
   period,
   selectedDate,
+  startDate,
+  endDate,
   report,
   setPeriod,
   setSelectedDate,
+  setStartDate,
+  setEndDate,
   t,
 }: {
   period: Period;
   selectedDate: string;
+  startDate: string;
+  endDate: string;
   report: {
     startDate: string;
     endDate: string;
@@ -376,23 +391,42 @@ function ShopReportView({
   };
   setPeriod: (period: Period) => void;
   setSelectedDate: (date: string) => void;
+  setStartDate: (date: string) => void;
+  setEndDate: (date: string) => void;
   t: LanguageText;
 }) {
   const [showExpenseCategories, setShowExpenseCategories] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [pendingStartDate, setPendingStartDate] = useState<string | null>(null);
+  const [calendarMonth, setCalendarMonth] = useState(selectedDate.slice(0, 7));
+  const isEnglish = t.back.includes("Back");
   const closeLabel = t.back.includes("Back") ? "Close" : "关闭";
+  const datePickerTitle = isEnglish ? "Select Date" : "选择日期";
+  const datePickerHint = isEnglish
+    ? "Choose one day, or choose a second day to view the range between them."
+    : "选择一个日期，或再选择第二个日期查看两个日期之间的数据。";
 
   return (
     <>
       <section className="mb-3 w-full max-w-full overflow-hidden rounded-xl border border-gray-200 p-3">
-        <FormLabel htmlFor="report-date">{t.reportDate}</FormLabel>
-        <div className="w-full max-w-full min-w-0 overflow-hidden">
-          <input
-            id="report-date"
-            type="date"
-            value={selectedDate}
-            onChange={(event) => setSelectedDate(event.target.value)}
-            className={dateInputClassName}
-          />
+        <div>
+          <p className="mb-2 text-sm font-semibold text-gray-800">
+            {t.reportDate}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setPendingStartDate(null);
+              setCalendarMonth(startDate.slice(0, 7));
+              setShowDatePicker(true);
+            }}
+            className={dateButtonClassName}
+          >
+            <span className="min-w-0 break-words">
+              {startDate === endDate ? startDate : `${startDate} ${t.to} ${endDate}`}
+            </span>
+            <span className="shrink-0 text-sm text-gray-500">v</span>
+          </button>
         </div>
 
         <div className="mt-3 grid min-w-0 grid-cols-3 gap-2">
@@ -404,7 +438,14 @@ function ShopReportView({
             <button
               key={value}
               type="button"
-              onClick={() => setPeriod(value as Period)}
+              onClick={() => {
+                const nextPeriod = value as Exclude<Period, "custom">;
+                const nextDates = getPeriodDates(selectedDate, nextPeriod);
+
+                setPeriod(nextPeriod);
+                setStartDate(nextDates[0]);
+                setEndDate(nextDates[nextDates.length - 1]);
+              }}
               className={`min-h-10 rounded-xl border px-2 text-sm font-semibold ${
                 period === value
                   ? "border-gray-900 bg-gray-900 text-white"
@@ -420,6 +461,46 @@ function ShopReportView({
           {report.startDate} {t.to} {report.endDate}
         </p>
       </section>
+
+      {showDatePicker && (
+        <DateRangePickerModal
+          title={datePickerTitle}
+          hint={datePickerHint}
+          closeLabel={closeLabel}
+          month={calendarMonth}
+          startDate={startDate}
+          endDate={endDate}
+          pendingStartDate={pendingStartDate}
+          isEnglish={isEnglish}
+          onPreviousMonth={() => setCalendarMonth(shiftMonth(calendarMonth, -1))}
+          onNextMonth={() => setCalendarMonth(shiftMonth(calendarMonth, 1))}
+          onClose={() => {
+            setPendingStartDate(null);
+            setShowDatePicker(false);
+          }}
+          onPickDate={(dateKey) => {
+            if (!pendingStartDate) {
+              setPendingStartDate(dateKey);
+              setSelectedDate(dateKey);
+              setStartDate(dateKey);
+              setEndDate(dateKey);
+              setPeriod("day");
+              return;
+            }
+
+            const nextStartDate =
+              pendingStartDate <= dateKey ? pendingStartDate : dateKey;
+            const nextEndDate =
+              pendingStartDate <= dateKey ? dateKey : pendingStartDate;
+            setSelectedDate(nextStartDate);
+            setStartDate(nextStartDate);
+            setEndDate(nextEndDate);
+            setPeriod(nextStartDate === nextEndDate ? "day" : "custom");
+            setPendingStartDate(null);
+            setShowDatePicker(false);
+          }}
+        />
+      )}
 
       <section className="mb-3 grid min-w-0 grid-cols-1 gap-2 min-[360px]:grid-cols-2 lg:grid-cols-3">
         <SummaryCard
@@ -1184,8 +1265,8 @@ type EmployeeReport = {
 
 const mobileInputClassName =
   "min-h-12 w-full min-w-0 max-w-full appearance-none rounded-xl border border-gray-300 bg-white px-3 text-base text-gray-900 outline-none focus:border-gray-900";
-const dateInputClassName =
-  "block min-h-12 w-full min-w-0 max-w-full appearance-none rounded-xl border border-gray-300 bg-white px-4 text-base font-semibold text-gray-900 outline-none focus:border-gray-900 [box-sizing:border-box]";
+const dateButtonClassName =
+  "flex min-h-12 w-full min-w-0 max-w-full items-center justify-between gap-3 rounded-xl border border-gray-300 bg-white px-4 text-left text-base font-semibold text-gray-900";
 
 function buildEmployeeReport({
   employees,
@@ -1618,7 +1699,7 @@ function groupExpensesByCategory(expenses: Expense[]) {
     .sort((a, b) => b.amount - a.amount);
 }
 
-function getPeriodDates(selectedDate: string, period: Period) {
+function getPeriodDates(selectedDate: string, period: Exclude<Period, "custom">) {
   const date = new Date(`${selectedDate}T12:00:00`);
 
   if (period === "day") {
