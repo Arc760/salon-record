@@ -267,8 +267,6 @@ export default function ServicesPage() {
   const searchLabel = language === "zh" ? "搜索菜单" : "Search Menu";
   const searchPlaceholder =
     language === "zh" ? "输入项目名称，例如 凝胶" : "Enter item name, example Gel";
-  const commissionSearchLabel =
-    language === "zh" ? "搜索项目添加提成" : "Search Item for Commission";
   const commissionSearchPlaceholder =
     language === "zh" ? "输入项目名称，选择后添加提成" : "Search item, then add commission";
   const visibleCategories = search.trim()
@@ -430,9 +428,9 @@ export default function ServicesPage() {
           <AppModal onClose={() => setShowEditor(false)} contentClassName="p-5">
             <form
               onSubmit={submitForm}
-              className="flex max-h-[calc(88vh-2.5rem)] flex-col overflow-y-auto"
+              className="flex max-h-[calc(88vh-2.5rem)] flex-col gap-4 overflow-y-auto"
             >
-          <FormField label={commissionSearchLabel} htmlFor="commission-search">
+          <div>
             <input
               id="commission-search"
               type="search"
@@ -442,7 +440,7 @@ export default function ServicesPage() {
               className={inputClassName}
             />
             {commissionSearchResults.length > 0 && (
-              <div className="mt-2 max-h-56 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-2">
+              <div className="mt-3 max-h-56 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-2">
                 {commissionSearchResults.map((item) => (
                   <button
                     key={item.id}
@@ -465,8 +463,16 @@ export default function ServicesPage() {
                 ))}
               </div>
             )}
+          </div>
+          <FormField label={t.name} htmlFor="menu-name">
+            <input
+              id="menu-name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder={t.namePlaceholder}
+              className={inputClassName}
+            />
           </FormField>
-
           <FormField label={t.type} htmlFor="menu-type">
             <select
               id="menu-type"
@@ -480,15 +486,6 @@ export default function ServicesPage() {
                 </option>
               ))}
             </select>
-          </FormField>
-          <FormField label={t.name} htmlFor="menu-name">
-            <input
-              id="menu-name"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder={t.namePlaceholder}
-              className={inputClassName}
-            />
           </FormField>
           <FormField label={t.aliases} htmlFor="menu-aliases">
             <input
