@@ -287,23 +287,25 @@ export default function ReportsPage() {
   );
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-gray-100 pb-20">
-      <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col overflow-x-hidden bg-white px-4 pb-24 pt-4 sm:px-6 lg:px-8">
-        <header className="mb-4 flex items-start justify-between gap-4">
-          <div>
+    <main className="min-h-screen w-full max-w-full overflow-x-hidden bg-gray-100 pb-20">
+      <div className="mx-auto flex min-h-screen w-full max-w-full flex-col overflow-x-hidden bg-white px-3 pb-24 pt-4 sm:max-w-5xl sm:px-6 lg:px-8">
+        <header className="mb-4 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
             <Link
               href="/"
               className="mb-5 inline-block text-sm font-medium text-gray-600"
             >
               {t.back}
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900">{t.title}</h1>
+            <h1 className="break-words text-2xl font-bold text-gray-900">
+              {t.title}
+            </h1>
             <p className="mt-2 text-sm text-gray-500">{t.subtitle}</p>
           </div>
           <LanguageSwitcher language={language} setLanguage={setLanguage} />
         </header>
 
-        <div className="mb-3 grid grid-cols-2 gap-2 rounded-xl border border-gray-200 bg-gray-50 p-1">
+        <div className="mb-3 grid min-w-0 grid-cols-2 gap-2 rounded-xl border border-gray-200 bg-gray-50 p-1">
           <TabButton active={mode === "shop"} onClick={() => setMode("shop")}>
             {t.shopReport}
           </TabButton>
@@ -383,15 +385,17 @@ function ShopReportView({
     <>
       <section className="mb-3 w-full max-w-full overflow-hidden rounded-xl border border-gray-200 p-3">
         <FormLabel htmlFor="report-date">{t.reportDate}</FormLabel>
-        <input
-          id="report-date"
-          type="date"
-          value={selectedDate}
-          onChange={(event) => setSelectedDate(event.target.value)}
-          className={`${inputClassName} block [min-inline-size:0]`}
-        />
+        <div className="w-full max-w-full min-w-0 overflow-hidden">
+          <input
+            id="report-date"
+            type="date"
+            value={selectedDate}
+            onChange={(event) => setSelectedDate(event.target.value)}
+            className={dateInputClassName}
+          />
+        </div>
 
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className="mt-3 grid min-w-0 grid-cols-3 gap-2">
           {[
             ["day", t.day],
             ["week", t.week],
@@ -417,7 +421,7 @@ function ShopReportView({
         </p>
       </section>
 
-      <section className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-3">
+      <section className="mb-3 grid min-w-0 grid-cols-1 gap-2 min-[360px]:grid-cols-2 lg:grid-cols-3">
         <SummaryCard
           label={t.orderSales}
           value={formatCurrency(report.orderSales)}
@@ -560,7 +564,7 @@ function EmployeeReportView({
 
   return (
     <>
-      <section className="mb-3 rounded-xl border border-gray-200 p-3">
+      <section className="mb-3 w-full max-w-full overflow-hidden rounded-xl border border-gray-200 p-3">
         <FormLabel htmlFor="employee-search">{t.searchSalary}</FormLabel>
         <input
           id="employee-search"
@@ -568,7 +572,7 @@ function EmployeeReportView({
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder={t.searchPlaceholder}
-          className={inputClassName}
+          className={mobileInputClassName}
         />
 
         <div className="mt-3">
@@ -577,7 +581,7 @@ function EmployeeReportView({
             id="employee-select"
             value={selectedEmployeeId}
             onChange={(event) => setSelectedEmployeeId(event.target.value)}
-            className={inputClassName}
+            className={mobileInputClassName}
           >
             <option value="all">{t.allEmployees}</option>
             {employees.map((employee) => (
@@ -696,7 +700,7 @@ function EmployeeReportView({
         </section>
       )}
 
-      <section className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-5">
+      <section className="mb-3 grid min-w-0 grid-cols-1 gap-2 min-[360px]:grid-cols-2 lg:grid-cols-5">
         <SummaryCard label="营业额 / Sales" value={formatCurrency(report.revenueTotal)} />
         <SummaryCard label="单数 / Orders" value={String(report.orderCount)} />
         <SummaryCard label={t.basePay} value={formatCurrency(report.basePayTotal)} />
@@ -1094,9 +1098,11 @@ function ReportListModal({
 
 function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
-    <article className="rounded-xl border border-gray-200 p-3">
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className="mt-1 break-words text-sm font-bold text-gray-900">{value}</p>
+    <article className="min-w-0 overflow-hidden rounded-xl border border-gray-200 p-3">
+      <p className="break-words text-xs text-gray-500">{label}</p>
+      <p className="mt-1 min-w-0 break-words text-sm font-bold text-gray-900">
+        {value}
+      </p>
     </article>
   );
 }
@@ -1176,8 +1182,10 @@ type EmployeeReport = {
   }[];
 };
 
-const inputClassName =
-  "min-h-12 w-full min-w-0 max-w-full rounded-xl border border-gray-300 bg-white px-4 text-base text-gray-900 outline-none focus:border-gray-900";
+const mobileInputClassName =
+  "min-h-12 w-full min-w-0 max-w-full appearance-none rounded-xl border border-gray-300 bg-white px-3 text-base text-gray-900 outline-none focus:border-gray-900";
+const dateInputClassName =
+  "block min-h-12 w-full min-w-0 max-w-full appearance-none rounded-xl border border-gray-300 bg-white px-3 text-base text-gray-900 outline-none focus:border-gray-900 [box-sizing:border-box]";
 
 function buildEmployeeReport({
   employees,
