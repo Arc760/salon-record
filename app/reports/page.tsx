@@ -381,14 +381,14 @@ function ShopReportView({
 
   return (
     <>
-      <section className="mb-3 rounded-xl border border-gray-200 p-3">
+      <section className="mb-3 w-full max-w-full overflow-hidden rounded-xl border border-gray-200 p-3">
         <FormLabel htmlFor="report-date">{t.reportDate}</FormLabel>
         <input
           id="report-date"
           type="date"
           value={selectedDate}
           onChange={(event) => setSelectedDate(event.target.value)}
-          className={inputClassName}
+          className={`${inputClassName} block [min-inline-size:0]`}
         />
 
         <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">

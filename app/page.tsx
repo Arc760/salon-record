@@ -24,7 +24,9 @@ const text = {
   zh: {
     appName: "美甲店经营记账本",
     subtitle: "Salon Record",
-    greeting: "晚上好",
+    morning: "早上好",
+    afternoon: "下午好",
+    evening: "晚上好",
     sales: "今日营业额",
     expenses: "今日支出",
     employeePay: "员工提成",
@@ -41,7 +43,9 @@ const text = {
   en: {
     appName: "Salon Record",
     subtitle: "Nail salon business ledger",
-    greeting: "Good evening",
+    morning: "Good morning",
+    afternoon: "Good afternoon",
+    evening: "Good evening",
     sales: "Today's Sales",
     expenses: "Today's Expenses",
     employeePay: "Employee Commission",
@@ -62,6 +66,7 @@ export default function Home() {
   const t = text[language];
   const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [greeting, setGreeting] = useState("");
   const today = getTodayDate();
   const formattedDate = useMemo(
     () =>
@@ -81,6 +86,14 @@ export default function Home() {
 
     return () => window.clearTimeout(loadSummary);
   }, []);
+
+  useEffect(() => {
+    const loadGreeting = window.setTimeout(() => {
+      setGreeting(getGreetingForHour(new Date().getHours(), t));
+    }, 0);
+
+    return () => window.clearTimeout(loadGreeting);
+  }, [t]);
 
   const todaySummary = useMemo(() => {
     const record = dailyRecords.find((item) => item.date === today);
@@ -112,7 +125,7 @@ export default function Home() {
         </header>
 
         <section className="mb-3">
-          <p className="text-base font-semibold text-gray-900">{t.greeting}</p>
+          <p className="text-base font-semibold text-gray-900">{greeting}</p>
           <p className="mt-1 text-sm text-gray-500">{formattedDate}</p>
         </section>
 
@@ -213,6 +226,18 @@ function getTodayDate() {
   const day = String(currentDate.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
+}
+
+function getGreetingForHour(hour: number, t: (typeof text)["zh"]) {
+  if (hour < 12) {
+    return t.morning;
+  }
+
+  if (hour < 18) {
+    return t.afternoon;
+  }
+
+  return t.evening;
 }
 
 function formatCurrency(amount: number) {
