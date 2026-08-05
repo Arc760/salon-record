@@ -101,6 +101,8 @@ const text = {
     month: "月报",
     to: "至",
     sales: "营业额",
+    orderSales: "订单营业额",
+    giftCardSales: "礼卡销售",
     cashSales: "现金收入",
     cardSales: "刷卡收入",
     employeeCommission: "员工提成",
@@ -143,6 +145,8 @@ const text = {
     month: "Monthly",
     to: "to",
     sales: "Sales",
+    orderSales: "Order Sales",
+    giftCardSales: "Gift Card Sales",
     cashSales: "Cash Sales",
     cardSales: "Card Sales",
     employeeCommission: "Employee Commission",
@@ -214,6 +218,14 @@ export default function ReportsPage() {
       (sum, record) => sum + getRecordCardSales(record),
       0,
     );
+    const orderSales = filteredRecords.reduce(
+      (sum, record) => sum + getRecordOrderSales(record),
+      0,
+    );
+    const giftCardSaleTotal = filteredRecords.reduce(
+      (sum, record) => sum + getRecordGiftCardSaleTotal(record),
+      0,
+    );
     const commissionTotal = filteredRecords.reduce(
       (sum, record) => sum + getRecordCommissionTotal(record),
       0,
@@ -228,6 +240,8 @@ export default function ReportsPage() {
       endDate: dates[dates.length - 1],
       cashSales,
       cardSales,
+      orderSales,
+      giftCardSaleTotal,
       sales: cashSales + cardSales,
       commissionTotal,
       expenseTotal,
@@ -347,6 +361,8 @@ function ShopReportView({
     startDate: string;
     endDate: string;
     sales: number;
+    orderSales: number;
+    giftCardSaleTotal: number;
     cashSales: number;
     cardSales: number;
     commissionTotal: number;
@@ -402,6 +418,14 @@ function ShopReportView({
       </section>
 
       <section className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-3">
+        <SummaryCard
+          label={t.orderSales}
+          value={formatCurrency(report.orderSales)}
+        />
+        <SummaryCard
+          label={t.giftCardSales}
+          value={formatCurrency(report.giftCardSaleTotal)}
+        />
         <SummaryCard label={t.sales} value={formatCurrency(report.sales)} />
         <SummaryCard label={t.cashSales} value={formatCurrency(report.cashSales)} />
         <SummaryCard label={t.cardSales} value={formatCurrency(report.cardSales)} />
@@ -1358,6 +1382,26 @@ function getRecordCardSales(record: DailyRecord) {
   }
 
   return getPaymentTotals(record.orders, record.giftCardSales ?? []).cardSales;
+}
+
+function getRecordOrderSales(record: DailyRecord) {
+  if (!record.orders) {
+    return Math.max(
+      0,
+      record.cashSales +
+        record.cardSales -
+        getRecordGiftCardSaleTotal(record),
+    );
+  }
+
+  return record.orders.reduce((sum, order) => sum + getOrderRevenue(order), 0);
+}
+
+function getRecordGiftCardSaleTotal(record: DailyRecord) {
+  return (record.giftCardSales ?? []).reduce(
+    (sum, sale) => sum + sale.amount,
+    0,
+  );
 }
 
 function getRecordCommissionTotal(record: DailyRecord) {
