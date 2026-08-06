@@ -987,20 +987,9 @@ export default function DailyRecordPage() {
                                           item,
                                         )
                                       }
-                                      className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-sm hover:bg-gray-50"
+                                      className="min-h-11 w-full rounded-xl px-3 text-left text-sm font-semibold text-gray-900 hover:bg-gray-50"
                                     >
-                                      <span className="min-w-0">
-                                        <span className="block break-words font-semibold text-gray-900">
-                                          {item.name}
-                                        </span>
-                                        <span className="block text-xs text-gray-500">
-                                          {t.itemCommission}{" "}
-                                          {formatCurrency(item.commission)}
-                                        </span>
-                                      </span>
-                                      <span className="shrink-0 font-semibold text-gray-900">
-                                        {formatCurrency(item.price)}
-                                      </span>
+                                      {item.name}
                                     </button>
                                   ))}
                                 </div>
@@ -1821,27 +1810,63 @@ function getMenuSearchResults(
     return [];
   }
 
-  return menuItems.filter((item) => {
-    if (!item.active || !menuItemMatchesLineKind(item, kind)) {
-      return false;
-    }
+  return menuItems
+    .map((item) => ({
+      item,
+      rank: getMenuSearchRank(item, normalizedSearch, kind),
+    }))
+    .filter((result) => result.rank < Number.POSITIVE_INFINITY)
+    .sort((first, second) => first.rank - second.rank)
+    .map((result) => result.item);
+}
 
-    const aliases = getMenuAliases(item).map(normalizeMenuSearchText);
-    const searchableText = [
-      item.name,
-      item.id,
-      item.type,
-      getInitials(item.name),
-      ...aliases,
-    ]
-      .map(normalizeMenuSearchText)
-      .join(" ");
+function getMenuSearchRank(
+  item: MenuItem,
+  normalizedSearch: string,
+  kind?: OrderLineDraft["kind"],
+) {
+  if (!item.active || !menuItemMatchesLineKind(item, kind)) {
+    return Number.POSITIVE_INFINITY;
+  }
 
-    return (
-      searchableText.includes(normalizedSearch) ||
-      aliases.some((alias) => alias.startsWith(normalizedSearch))
-    );
-  });
+  const normalizedName = normalizeMenuSearchText(item.name);
+  const normalizedId = normalizeMenuSearchText(item.id);
+  const normalizedType = normalizeMenuSearchText(item.type);
+  const normalizedInitials = normalizeMenuSearchText(getInitials(item.name));
+  const aliases = getMenuAliases(item).map(normalizeMenuSearchText);
+  const exactAliasMatch = aliases.some((alias) => alias === normalizedSearch);
+  const aliasPrefixMatch = aliases.some((alias) =>
+    alias.startsWith(normalizedSearch),
+  );
+
+  if (exactAliasMatch || normalizedInitials === normalizedSearch) {
+    return 0;
+  }
+
+  if (aliasPrefixMatch || normalizedInitials.startsWith(normalizedSearch)) {
+    return 1;
+  }
+
+  if (normalizedName === normalizedSearch || normalizedId === normalizedSearch) {
+    return 2;
+  }
+
+  if (
+    normalizedName.startsWith(normalizedSearch) ||
+    normalizedId.startsWith(normalizedSearch)
+  ) {
+    return 3;
+  }
+
+  if (
+    normalizedName.includes(normalizedSearch) ||
+    normalizedId.includes(normalizedSearch) ||
+    normalizedType.includes(normalizedSearch)
+  ) {
+    return 4;
+  }
+
+  return Number.POSITIVE_INFINITY;
 }
 
 function menuItemMatchesLineKind(
