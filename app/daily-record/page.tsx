@@ -123,6 +123,15 @@ const DAILY_RECORD_DRAFTS_KEY = "salon-record-daily-record-drafts";
 const EXPENSES_KEY = "salon-record-expenses";
 const MENU_KEY = "salon-record-service-menu";
 const ORDER_DRAFT_KEY = "salon-record-order-draft";
+const NAIL_ART_ITEM: MenuItem = {
+  id: "nail-art-custom",
+  type: "additional-services",
+  name: "花样",
+  price: 0,
+  commission: 0,
+  aliases: ["nail art", "art", "design", "hy"],
+  active: true,
+};
 const categoryKeys: CategoryKey[] = [
   "rent",
   "supplies",
@@ -343,7 +352,7 @@ export default function DailyRecordPage() {
       const loadedEmployees = readStorage<Employee[]>(EMPLOYEES_KEY, []);
       setEmployees(loadedEmployees);
       setEmployeeId(loadedEmployees[0]?.id ?? "");
-      setMenuItems(readStorage<MenuItem[]>(MENU_KEY, []));
+      setMenuItems(mergeDailyMenuItems(readStorage<MenuItem[]>(MENU_KEY, [])));
       setRecords(readStorage<DailyRecord[]>(DAILY_RECORDS_KEY, []));
       setExpenses(readStorage<Expense[]>(EXPENSES_KEY, []));
       setRecordDataLoaded(true);
@@ -633,15 +642,24 @@ export default function DailyRecordPage() {
 
         if (field === "name") {
           const menuItem = findMenuItemBySearch(value, menuItems, line.kind);
+          const nextAmount =
+            menuItem && menuItem.price > 0 ? String(menuItem.price) : line.amount;
 
           return {
             ...line,
             name: value,
-            amount: menuItem ? String(menuItem.price) : line.amount,
-            commission:
-              menuItem && menuItem.commission > 0
-                ? String(menuItem.commission)
-                : line.commission,
+            amount: nextAmount,
+            commission: getLineCommissionValue(menuItem, nextAmount, line.commission),
+          };
+        }
+
+        if (field === "amount") {
+          const menuItem = findMenuItemBySearch(line.name, menuItems, line.kind);
+
+          return {
+            ...line,
+            amount: value,
+            commission: getLineCommissionValue(menuItem, value, line.commission),
           };
         }
 
@@ -665,8 +683,8 @@ export default function DailyRecordPage() {
           ? {
               ...line,
               name: item.name,
-              amount: String(item.price),
-              commission: item.commission > 0 ? String(item.commission) : "",
+              amount: item.price > 0 ? String(item.price) : "",
+              commission: getLineCommissionValue(item, String(item.price), ""),
             }
           : line,
       ),
@@ -1835,7 +1853,8 @@ function buildOrdersFromLineDrafts(
       "service",
     );
     const serviceCommission =
-      toAmount(serviceLine?.commission) || serviceMenuItem?.commission || 0;
+      toAmount(serviceLine?.commission) ||
+      getMenuItemDefaultCommission(serviceMenuItem, servicePrice);
     const extras: OrderExtra[] = [];
 
     lines.forEach((line) => {
@@ -1856,7 +1875,7 @@ function buildOrdersFromLineDrafts(
         id: crypto.randomUUID(),
         name: name || `${options.fallbackName} ${orderNumber}`,
         price,
-        commission: commission || menuItem?.commission || 0,
+        commission: commission || getMenuItemDefaultCommission(menuItem, price),
       });
     });
 
@@ -2283,6 +2302,57 @@ function formatCurrency(amount: number) {
     style: "currency",
     currency: "USD",
   }).format(amount);
+}
+
+function mergeDailyMenuItems(menuItems: MenuItem[]) {
+  const hasNailArt = menuItems.some(
+    (item) =>
+      item.id === NAIL_ART_ITEM.id ||
+      normalizeMenuSearchText(item.name) === normalizeMenuSearchText(NAIL_ART_ITEM.name),
+  );
+
+  return hasNailArt ? menuItems : [...menuItems, NAIL_ART_ITEM];
+}
+
+function getLineCommissionValue(
+  menuItem: MenuItem | undefined,
+  amountValue: string,
+  currentCommission: string,
+) {
+  const amount = toAmount(amountValue);
+
+  if (isNailArtItem(menuItem)) {
+    return amount > 0 ? formatPlainAmount(amount * 0.2) : "";
+  }
+
+  if (menuItem && menuItem.commission > 0) {
+    return String(menuItem.commission);
+  }
+
+  return currentCommission;
+}
+
+function getMenuItemDefaultCommission(
+  menuItem: MenuItem | undefined,
+  amount: number,
+) {
+  if (isNailArtItem(menuItem)) {
+    return roundCurrency(amount * 0.2);
+  }
+
+  return menuItem?.commission ?? 0;
+}
+
+function isNailArtItem(menuItem: MenuItem | undefined) {
+  return menuItem?.id === NAIL_ART_ITEM.id;
+}
+
+function formatPlainAmount(amount: number) {
+  return String(roundCurrency(amount));
+}
+
+function roundCurrency(amount: number) {
+  return Math.round(amount * 100) / 100;
 }
 
 function getTodayDate() {

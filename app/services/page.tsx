@@ -81,6 +81,7 @@ const defaultMenuItems: Array<
   { id: "feet-mask", type: "additional-services", name: "Feet Mask", price: 15, commission: 0 },
   { id: "callus-treatment", type: "additional-services", name: "Callus Treatment", price: 12, commission: 0 },
   { id: "shiny-buff", type: "additional-services", name: "Shiny Buff", price: 8, commission: 0 },
+  { id: "nail-art-custom", type: "additional-services", name: "花样", price: 0, commission: 0, aliases: ["nail art", "art", "design", "hy"] },
   { id: "waxing-eyebrow", type: "waxing", name: "Eyebrow Waxing", price: 15, commission: 0 },
   { id: "waxing-lips", type: "waxing", name: "Lips Waxing", price: 10, commission: 0 },
   { id: "waxing-chin", type: "waxing", name: "Chin Waxing", price: 10, commission: 0 },
