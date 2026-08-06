@@ -75,6 +75,7 @@ type OrderLineDraft = {
   id: string;
   name: string;
   amount: string;
+  commission: string;
 };
 
 type CategoryKey = "rent" | "supplies" | "payroll" | "utilities" | "marketing" | "other";
@@ -161,6 +162,7 @@ const text = {
     addOrderNumber: "新增单号",
     itemName: "项目名称",
     itemAmount: "金额",
+    itemCommission: "提成",
     saveEmployeeOrders: "保存当前员工项目",
     expense: "支出",
     addExpense: "添加支出",
@@ -221,6 +223,7 @@ const text = {
     addOrderNumber: "Add Order",
     itemName: "Item Name",
     itemAmount: "Amount",
+    itemCommission: "Commission",
     saveEmployeeOrders: "Save Employee Orders",
     expense: "Expense",
     addExpense: "Add Expense",
@@ -511,7 +514,7 @@ export default function DailyRecordPage() {
   function updateOrderLine(
     orderNumber: string,
     lineId: string,
-    field: keyof Pick<OrderLineDraft, "name" | "amount">,
+    field: keyof Pick<OrderLineDraft, "name" | "amount" | "commission">,
     value: string,
   ) {
     setOrderLineDrafts((currentDrafts) => ({
@@ -522,18 +525,22 @@ export default function DailyRecordPage() {
         }
 
         if (field === "name") {
-          const menuItem = findMenuItemByName(value, menuItems);
+          const menuItem = findMenuItemBySearch(value, menuItems);
 
           return {
             ...line,
             name: value,
             amount: menuItem ? String(menuItem.price) : line.amount,
+            commission:
+              menuItem && menuItem.commission > 0
+                ? String(menuItem.commission)
+                : line.commission,
           };
         }
 
         return {
           ...line,
-          amount: value,
+          [field]: value,
         };
       }),
     }));
@@ -908,7 +915,7 @@ export default function DailyRecordPage() {
                       {(orderLineDrafts[activeOrderNumber] ?? []).map((line) => (
                         <div
                           key={line.id}
-                          className="grid grid-cols-1 gap-2 rounded-xl border border-gray-200 p-2 sm:grid-cols-[1fr_7rem_auto_auto]"
+                          className="grid grid-cols-1 gap-2 rounded-xl border border-gray-200 p-2 sm:grid-cols-[1fr_7rem_7rem_auto_auto]"
                         >
                           <input
                             value={line.name}
@@ -935,6 +942,19 @@ export default function DailyRecordPage() {
                               )
                             }
                             placeholder={t.itemAmount}
+                          />
+                          <MoneyInput
+                            id={`line-commission-${line.id}`}
+                            value={line.commission}
+                            onChange={(value) =>
+                              updateOrderLine(
+                                activeOrderNumber,
+                                line.id,
+                                "commission",
+                                value,
+                              )
+                            }
+                            placeholder={t.itemCommission}
                           />
                           <button
                             type="button"
@@ -1546,6 +1566,7 @@ function createOrderLineDraft(): OrderLineDraft {
     id: crypto.randomUUID(),
     name: "",
     amount: "",
+    commission: "",
   };
 }
 
@@ -1555,22 +1576,18 @@ function orderToLineDrafts(order: EmployeeOrder): OrderLineDraft[] {
         id: crypto.randomUUID(),
         name: extra.name,
         amount: extra.price > 0 ? String(extra.price) : "",
+        commission: extra.commission > 0 ? String(extra.commission) : "",
       }))
     : [
         {
           id: crypto.randomUUID(),
           name: order.serviceName,
           amount: order.price > 0 ? String(order.price) : "",
+          commission: order.commission > 0 ? String(order.commission) : "",
         },
       ];
 
   return lines.length > 0 ? lines : [createOrderLineDraft()];
-}
-
-function findMenuItemByName(name: string, menuItems: MenuItem[]) {
-  const normalizedName = name.trim().toLowerCase();
-
-  return menuItems.find((item) => item.name.toLowerCase() === normalizedName);
 }
 
 function buildOrdersFromLineDrafts(
@@ -1603,7 +1620,8 @@ function buildOrdersFromLineDrafts(
     (orderLineDrafts[orderNumber] ?? []).forEach((line) => {
       const name = line.name.trim();
       const price = toAmount(line.amount);
-      const menuItem = findMenuItemByName(name, menuItems);
+      const menuItem = findMenuItemBySearch(name, menuItems);
+      const commission = toAmount(line.commission);
 
       if (!name && price <= 0) {
         return;
@@ -1613,7 +1631,7 @@ function buildOrdersFromLineDrafts(
         id: crypto.randomUUID(),
         name: name || `${options.fallbackName} ${orderNumber}`,
         price,
-        commission: menuItem?.commission ?? 0,
+        commission: commission || menuItem?.commission || 0,
       });
     });
 
@@ -1660,6 +1678,111 @@ function buildOrdersFromLineDrafts(
   });
 
   return nextOrders;
+}
+
+function findMenuItemBySearch(searchText: string, menuItems: MenuItem[]) {
+  const normalizedSearch = normalizeMenuSearchText(searchText);
+
+  if (!normalizedSearch) {
+    return undefined;
+  }
+
+  return menuItems.find((item) => {
+    const aliases = getMenuAliases(item).map(normalizeMenuSearchText);
+    const searchableText = [
+      item.name,
+      item.id,
+      item.type,
+      getInitials(item.name),
+      ...aliases,
+    ]
+      .map(normalizeMenuSearchText)
+      .join(" ");
+
+    if (normalizedSearch.length <= 2) {
+      return aliases.some((alias) => alias === normalizedSearch);
+    }
+
+    return (
+      normalizeMenuSearchText(item.name) === normalizedSearch ||
+      searchableText.includes(normalizedSearch)
+    );
+  });
+}
+
+function getMenuAliases(item: MenuItem) {
+  const aliases = new Set<string>(item.aliases ?? []);
+  const normalizedName = normalizeMenuSearchText(item.name);
+
+  aliases.add(getInitials(item.name));
+
+  if (normalizedName.includes("full set")) {
+    aliases.add("fs");
+  }
+
+  if (normalizedName.includes("fill in")) {
+    aliases.add("fi");
+  }
+
+  if (normalizedName.includes("dipped")) {
+    aliases.add("dip");
+    aliases.add("dp");
+  }
+
+  if (normalizedName === "regular pedicure") {
+    aliases.add("p");
+    aliases.add("ped");
+    aliases.add("pedi");
+  }
+
+  if (normalizedName === "regular gel pedicure") {
+    aliases.add("gp");
+    aliases.add("rgp");
+  }
+
+  if (
+    normalizedName === "classic manicure" ||
+    normalizedName === "regular manicure"
+  ) {
+    aliases.add("m");
+    aliases.add("mani");
+  }
+
+  if (normalizedName === "gel manicure") {
+    aliases.add("gm");
+  }
+
+  if (normalizedName === "gel color") {
+    aliases.add("gc");
+  }
+
+  if (normalizedName.includes("acrylic")) {
+    aliases.add("ac");
+    aliases.add("a");
+  }
+
+  if (normalizedName.includes("uv gel")) {
+    aliases.add("uv");
+  }
+
+  if (normalizedName.includes("french")) {
+    aliases.add("fr");
+  }
+
+  return [...aliases].filter(Boolean);
+}
+
+function getInitials(value: string) {
+  return value
+    .split(/[^a-zA-Z0-9]+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .toLowerCase();
+}
+
+function normalizeMenuSearchText(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 function buildCommissionEntries(orders: EmployeeOrder[]) {
