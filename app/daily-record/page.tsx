@@ -984,7 +984,7 @@ export default function DailyRecordPage() {
                             key={line.id}
                             className="grid grid-cols-1 gap-2 rounded-xl border border-gray-200 p-2 sm:grid-cols-[1fr_7rem_7rem_auto_auto_auto]"
                           >
-                            <div className="min-w-0">
+                            <div className="relative min-w-0">
                               <p className="mb-1 text-xs font-semibold text-gray-500">
                                 {isServiceLine ? t.serviceName : t.extraName}
                               </p>
@@ -1006,7 +1006,7 @@ export default function DailyRecordPage() {
                                 className={inputClassName}
                               />
                               {showSearchResults && (
-                                <div className="mt-2 max-h-52 overflow-y-auto rounded-xl border border-gray-200 bg-white">
+                                <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-52 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
                                   {searchResults.map((item) => (
                                     <button
                                       key={item.id}
