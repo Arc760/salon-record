@@ -975,7 +975,7 @@ export default function DailyRecordPage() {
                                 className={inputClassName}
                               />
                               {searchResults.length > 0 && (
-                                <div className="mt-2 max-h-52 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-2">
+                                <div className="mt-2 max-h-52 overflow-y-auto rounded-xl border border-gray-200 bg-white">
                                   {searchResults.map((item) => (
                                     <button
                                       key={item.id}
@@ -987,7 +987,7 @@ export default function DailyRecordPage() {
                                           item,
                                         )
                                       }
-                                      className="min-h-11 w-full rounded-xl px-3 text-left text-sm font-semibold text-gray-900 hover:bg-gray-50"
+                                      className="block min-h-10 w-full border-b border-gray-100 px-4 py-2 text-left text-base text-gray-900 last:border-b-0 hover:bg-gray-50"
                                     >
                                       {item.name}
                                     </button>
@@ -995,37 +995,47 @@ export default function DailyRecordPage() {
                                 </div>
                               )}
                             </div>
-                            <MoneyInput
-                              id={`line-amount-${line.id}`}
-                              value={line.amount}
-                              onChange={(value) =>
-                                updateOrderLine(
-                                  activeOrderNumber,
-                                  line.id,
-                                  "amount",
-                                  value,
-                                )
-                              }
-                              placeholder={t.itemAmount}
-                            />
-                            <MoneyInput
-                              id={`line-commission-${line.id}`}
-                              value={line.commission}
-                              onChange={(value) =>
-                                updateOrderLine(
-                                  activeOrderNumber,
-                                  line.id,
-                                  "commission",
-                                  value,
-                                )
-                              }
-                              placeholder={t.itemCommission}
-                            />
+                            <div>
+                              <p className="mb-1 text-xs font-semibold text-gray-500">
+                                {t.itemAmount}
+                              </p>
+                              <MoneyInput
+                                id={`line-amount-${line.id}`}
+                                value={line.amount}
+                                onChange={(value) =>
+                                  updateOrderLine(
+                                    activeOrderNumber,
+                                    line.id,
+                                    "amount",
+                                    value,
+                                  )
+                                }
+                                placeholder={t.itemAmount}
+                              />
+                            </div>
+                            <div>
+                              <p className="mb-1 text-xs font-semibold text-gray-500">
+                                {t.itemCommission}
+                              </p>
+                              <MoneyInput
+                                id={`line-commission-${line.id}`}
+                                value={line.commission}
+                                onChange={(value) =>
+                                  updateOrderLine(
+                                    activeOrderNumber,
+                                    line.id,
+                                    "commission",
+                                    value,
+                                  )
+                                }
+                                placeholder={t.itemCommission}
+                              />
+                            </div>
                             <button
                               type="button"
                               onClick={() => addOrderLine(activeOrderNumber)}
                               title={t.extraName}
-                              className="min-h-12 rounded-xl border border-gray-300 px-3 text-lg font-bold text-gray-700"
+                              className="min-h-12 rounded-xl border border-gray-300 px-3 text-lg font-bold text-gray-700 sm:mt-5"
                             >
                               +
                             </button>
@@ -1039,7 +1049,7 @@ export default function DailyRecordPage() {
                                 isServiceLine
                                   ? "border-gray-200 text-gray-300"
                                   : "border-red-200 text-red-600"
-                              }`}
+                              } sm:mt-5`}
                             >
                               x
                             </button>
