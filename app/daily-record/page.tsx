@@ -546,6 +546,26 @@ export default function DailyRecordPage() {
     }));
   }
 
+  function fillOrderLineFromMenuItem(
+    orderNumber: string,
+    lineId: string,
+    item: MenuItem,
+  ) {
+    setOrderLineDrafts((currentDrafts) => ({
+      ...currentDrafts,
+      [orderNumber]: (currentDrafts[orderNumber] ?? []).map((line) =>
+        line.id === lineId
+          ? {
+              ...line,
+              name: item.name,
+              amount: String(item.price),
+              commission: item.commission > 0 ? String(item.commission) : "",
+            }
+          : line,
+      ),
+    }));
+  }
+
   function openAddOrderForm() {
     resetOrderForm();
     const draft = readStorage<{
@@ -917,19 +937,52 @@ export default function DailyRecordPage() {
                           key={line.id}
                           className="grid grid-cols-1 gap-2 rounded-xl border border-gray-200 p-2 sm:grid-cols-[1fr_7rem_7rem_auto_auto]"
                         >
-                          <input
-                            value={line.name}
-                            onChange={(event) =>
-                              updateOrderLine(
-                                activeOrderNumber,
-                                line.id,
-                                "name",
-                                event.target.value,
-                              )
-                            }
-                            placeholder={t.itemName}
-                            className={inputClassName}
-                          />
+                          <div className="min-w-0">
+                            <input
+                              value={line.name}
+                              onChange={(event) =>
+                                updateOrderLine(
+                                  activeOrderNumber,
+                                  line.id,
+                                  "name",
+                                  event.target.value,
+                                )
+                              }
+                              placeholder={t.itemName}
+                              className={inputClassName}
+                            />
+                            {getMenuSearchResults(line.name, menuItems).length > 0 && (
+                              <div className="mt-2 max-h-52 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-2">
+                                {getMenuSearchResults(line.name, menuItems).map((item) => (
+                                  <button
+                                    key={item.id}
+                                    type="button"
+                                    onClick={() =>
+                                      fillOrderLineFromMenuItem(
+                                        activeOrderNumber,
+                                        line.id,
+                                        item,
+                                      )
+                                    }
+                                    className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-sm hover:bg-gray-50"
+                                  >
+                                    <span className="min-w-0">
+                                      <span className="block break-words font-semibold text-gray-900">
+                                        {item.name}
+                                      </span>
+                                      <span className="block text-xs text-gray-500">
+                                        {t.itemCommission}{" "}
+                                        {formatCurrency(item.commission)}
+                                      </span>
+                                    </span>
+                                    <span className="shrink-0 font-semibold text-gray-900">
+                                      {formatCurrency(item.price)}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                           <MoneyInput
                             id={`line-amount-${line.id}`}
                             value={line.amount}
@@ -959,6 +1012,7 @@ export default function DailyRecordPage() {
                           <button
                             type="button"
                             onClick={() => addOrderLine(activeOrderNumber)}
+                            title={t.extraName}
                             className="min-h-12 rounded-xl border border-gray-300 px-3 text-lg font-bold text-gray-700"
                           >
                             +
@@ -1689,6 +1743,28 @@ function findMenuItemBySearch(searchText: string, menuItems: MenuItem[]) {
 
   return menuItems.find((item) => {
     const aliases = getMenuAliases(item).map(normalizeMenuSearchText);
+
+    return (
+      normalizeMenuSearchText(item.name) === normalizedSearch ||
+      normalizeMenuSearchText(item.id) === normalizedSearch ||
+      aliases.some((alias) => alias === normalizedSearch)
+    );
+  });
+}
+
+function getMenuSearchResults(searchText: string, menuItems: MenuItem[]) {
+  const normalizedSearch = normalizeMenuSearchText(searchText);
+
+  if (!normalizedSearch) {
+    return [];
+  }
+
+  return menuItems.filter((item) => {
+    if (!item.active) {
+      return false;
+    }
+
+    const aliases = getMenuAliases(item).map(normalizeMenuSearchText);
     const searchableText = [
       item.name,
       item.id,
@@ -1699,13 +1775,9 @@ function findMenuItemBySearch(searchText: string, menuItems: MenuItem[]) {
       .map(normalizeMenuSearchText)
       .join(" ");
 
-    if (normalizedSearch.length <= 2) {
-      return aliases.some((alias) => alias === normalizedSearch);
-    }
-
     return (
-      normalizeMenuSearchText(item.name) === normalizedSearch ||
-      searchableText.includes(normalizedSearch)
+      searchableText.includes(normalizedSearch) ||
+      aliases.some((alias) => alias.startsWith(normalizedSearch))
     );
   });
 }
