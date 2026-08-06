@@ -2344,7 +2344,11 @@ function getMenuItemDefaultCommission(
 }
 
 function isNailArtItem(menuItem: MenuItem | undefined) {
-  return menuItem?.id === NAIL_ART_ITEM.id;
+  return (
+    menuItem?.id === NAIL_ART_ITEM.id ||
+    normalizeMenuSearchText(menuItem?.name ?? "") ===
+      normalizeMenuSearchText(NAIL_ART_ITEM.name)
+  );
 }
 
 function formatPlainAmount(amount: number) {
