@@ -73,6 +73,7 @@ type GiftCardSale = {
 
 type OrderLineDraft = {
   id: string;
+  kind: "service" | "extra";
   name: string;
   amount: string;
   commission: string;
@@ -493,16 +494,23 @@ export default function DailyRecordPage() {
       ...currentDrafts,
       [orderNumber]: [
         ...(currentDrafts[orderNumber] ?? []),
-        createOrderLineDraft(),
+        createOrderLineDraft("extra"),
       ],
     }));
   }
 
   function removeOrderLine(orderNumber: string, lineId: string) {
     setOrderLineDrafts((currentDrafts) => {
-      const nextLines = (currentDrafts[orderNumber] ?? []).filter(
-        (line) => line.id !== lineId,
-      );
+      const currentLines = currentDrafts[orderNumber] ?? [];
+      const removedLine = currentLines.find((line) => line.id === lineId);
+      const nextLines = currentLines.filter((line) => line.id !== lineId);
+
+      if (removedLine?.kind === "service") {
+        return {
+          ...currentDrafts,
+          [orderNumber]: [createOrderLineDraft(), ...nextLines],
+        };
+      }
 
       return {
         ...currentDrafts,
@@ -525,7 +533,7 @@ export default function DailyRecordPage() {
         }
 
         if (field === "name") {
-          const menuItem = findMenuItemBySearch(value, menuItems);
+          const menuItem = findMenuItemBySearch(value, menuItems, line.kind);
 
           return {
             ...line,
@@ -932,100 +940,123 @@ export default function DailyRecordPage() {
                     </div>
 
                     <div className="space-y-2">
-                      {(orderLineDrafts[activeOrderNumber] ?? []).map((line) => (
-                        <div
-                          key={line.id}
-                          className="grid grid-cols-1 gap-2 rounded-xl border border-gray-200 p-2 sm:grid-cols-[1fr_7rem_7rem_auto_auto]"
-                        >
-                          <div className="min-w-0">
-                            <input
-                              value={line.name}
-                              onChange={(event) =>
+                      {(orderLineDrafts[activeOrderNumber] ?? []).map((line) => {
+                        const searchResults = getMenuSearchResults(
+                          line.name,
+                          menuItems,
+                          line.kind,
+                        );
+                        const isServiceLine = line.kind === "service";
+
+                        return (
+                          <div
+                            key={line.id}
+                            className="grid grid-cols-1 gap-2 rounded-xl border border-gray-200 p-2 sm:grid-cols-[1fr_7rem_7rem_auto_auto]"
+                          >
+                            <div className="min-w-0">
+                              <p className="mb-1 text-xs font-semibold text-gray-500">
+                                {isServiceLine ? t.serviceName : t.extraName}
+                              </p>
+                              <input
+                                value={line.name}
+                                onChange={(event) =>
+                                  updateOrderLine(
+                                    activeOrderNumber,
+                                    line.id,
+                                    "name",
+                                    event.target.value,
+                                  )
+                                }
+                                placeholder={
+                                  isServiceLine
+                                    ? t.servicePlaceholder
+                                    : t.extraPlaceholder
+                                }
+                                className={inputClassName}
+                              />
+                              {searchResults.length > 0 && (
+                                <div className="mt-2 max-h-52 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-2">
+                                  {searchResults.map((item) => (
+                                    <button
+                                      key={item.id}
+                                      type="button"
+                                      onClick={() =>
+                                        fillOrderLineFromMenuItem(
+                                          activeOrderNumber,
+                                          line.id,
+                                          item,
+                                        )
+                                      }
+                                      className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-sm hover:bg-gray-50"
+                                    >
+                                      <span className="min-w-0">
+                                        <span className="block break-words font-semibold text-gray-900">
+                                          {item.name}
+                                        </span>
+                                        <span className="block text-xs text-gray-500">
+                                          {t.itemCommission}{" "}
+                                          {formatCurrency(item.commission)}
+                                        </span>
+                                      </span>
+                                      <span className="shrink-0 font-semibold text-gray-900">
+                                        {formatCurrency(item.price)}
+                                      </span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <MoneyInput
+                              id={`line-amount-${line.id}`}
+                              value={line.amount}
+                              onChange={(value) =>
                                 updateOrderLine(
                                   activeOrderNumber,
                                   line.id,
-                                  "name",
-                                  event.target.value,
+                                  "amount",
+                                  value,
                                 )
                               }
-                              placeholder={t.itemName}
-                              className={inputClassName}
+                              placeholder={t.itemAmount}
                             />
-                            {getMenuSearchResults(line.name, menuItems).length > 0 && (
-                              <div className="mt-2 max-h-52 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-2">
-                                {getMenuSearchResults(line.name, menuItems).map((item) => (
-                                  <button
-                                    key={item.id}
-                                    type="button"
-                                    onClick={() =>
-                                      fillOrderLineFromMenuItem(
-                                        activeOrderNumber,
-                                        line.id,
-                                        item,
-                                      )
-                                    }
-                                    className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-sm hover:bg-gray-50"
-                                  >
-                                    <span className="min-w-0">
-                                      <span className="block break-words font-semibold text-gray-900">
-                                        {item.name}
-                                      </span>
-                                      <span className="block text-xs text-gray-500">
-                                        {t.itemCommission}{" "}
-                                        {formatCurrency(item.commission)}
-                                      </span>
-                                    </span>
-                                    <span className="shrink-0 font-semibold text-gray-900">
-                                      {formatCurrency(item.price)}
-                                    </span>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
+                            <MoneyInput
+                              id={`line-commission-${line.id}`}
+                              value={line.commission}
+                              onChange={(value) =>
+                                updateOrderLine(
+                                  activeOrderNumber,
+                                  line.id,
+                                  "commission",
+                                  value,
+                                )
+                              }
+                              placeholder={t.itemCommission}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => addOrderLine(activeOrderNumber)}
+                              title={t.extraName}
+                              className="min-h-12 rounded-xl border border-gray-300 px-3 text-lg font-bold text-gray-700"
+                            >
+                              +
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                removeOrderLine(activeOrderNumber, line.id)
+                              }
+                              disabled={isServiceLine}
+                              className={`min-h-12 rounded-xl border px-3 text-lg font-bold ${
+                                isServiceLine
+                                  ? "border-gray-200 text-gray-300"
+                                  : "border-red-200 text-red-600"
+                              }`}
+                            >
+                              x
+                            </button>
                           </div>
-                          <MoneyInput
-                            id={`line-amount-${line.id}`}
-                            value={line.amount}
-                            onChange={(value) =>
-                              updateOrderLine(
-                                activeOrderNumber,
-                                line.id,
-                                "amount",
-                                value,
-                              )
-                            }
-                            placeholder={t.itemAmount}
-                          />
-                          <MoneyInput
-                            id={`line-commission-${line.id}`}
-                            value={line.commission}
-                            onChange={(value) =>
-                              updateOrderLine(
-                                activeOrderNumber,
-                                line.id,
-                                "commission",
-                                value,
-                              )
-                            }
-                            placeholder={t.itemCommission}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => addOrderLine(activeOrderNumber)}
-                            title={t.extraName}
-                            className="min-h-12 rounded-xl border border-gray-300 px-3 text-lg font-bold text-gray-700"
-                          >
-                            +
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => removeOrderLine(activeOrderNumber, line.id)}
-                            className="min-h-12 rounded-xl border border-red-200 px-3 text-lg font-bold text-red-600"
-                          >
-                            x
-                          </button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                   <FormField label={orderLabels.discount} htmlFor="discount-amount">
@@ -1615,9 +1646,10 @@ function OrderRevenueModal({
 const inputClassName =
   "min-h-12 w-full min-w-0 max-w-full rounded-xl border border-gray-300 bg-white px-4 text-base text-gray-900 outline-none focus:border-gray-900";
 
-function createOrderLineDraft(): OrderLineDraft {
+function createOrderLineDraft(kind: OrderLineDraft["kind"] = "service"): OrderLineDraft {
   return {
     id: crypto.randomUUID(),
+    kind,
     name: "",
     amount: "",
     commission: "",
@@ -1625,21 +1657,22 @@ function createOrderLineDraft(): OrderLineDraft {
 }
 
 function orderToLineDrafts(order: EmployeeOrder): OrderLineDraft[] {
-  const lines = order.extras.length
-    ? order.extras.map((extra) => ({
-        id: crypto.randomUUID(),
-        name: extra.name,
-        amount: extra.price > 0 ? String(extra.price) : "",
-        commission: extra.commission > 0 ? String(extra.commission) : "",
-      }))
-    : [
-        {
-          id: crypto.randomUUID(),
-          name: order.serviceName,
-          amount: order.price > 0 ? String(order.price) : "",
-          commission: order.commission > 0 ? String(order.commission) : "",
-        },
-      ];
+  const lines: OrderLineDraft[] = [
+    {
+      id: crypto.randomUUID(),
+      kind: "service",
+      name: order.price > 0 ? order.serviceName : "",
+      amount: order.price > 0 ? String(order.price) : "",
+      commission: order.commission > 0 ? String(order.commission) : "",
+    },
+    ...order.extras.map((extra) => ({
+      id: crypto.randomUUID(),
+      kind: "extra" as const,
+      name: extra.name,
+      amount: extra.price > 0 ? String(extra.price) : "",
+      commission: extra.commission > 0 ? String(extra.commission) : "",
+    })),
+  ];
 
   return lines.length > 0 ? lines : [createOrderLineDraft()];
 }
@@ -1669,12 +1702,29 @@ function buildOrdersFromLineDrafts(
   const nextOrders: EmployeeOrder[] = [];
 
   orderNumbers.forEach((orderNumber, index) => {
+    const lines = orderLineDrafts[orderNumber] ?? [];
+    const serviceLine =
+      lines.find((line) => line.kind === "service") ??
+      lines.find((line) => line.name.trim() || toAmount(line.amount) > 0);
+    const serviceName = serviceLine?.name.trim() ?? "";
+    const servicePrice = toAmount(serviceLine?.amount);
+    const serviceMenuItem = findMenuItemBySearch(
+      serviceName,
+      menuItems,
+      "service",
+    );
+    const serviceCommission =
+      toAmount(serviceLine?.commission) || serviceMenuItem?.commission || 0;
     const extras: OrderExtra[] = [];
 
-    (orderLineDrafts[orderNumber] ?? []).forEach((line) => {
+    lines.forEach((line) => {
+      if (line.id === serviceLine?.id || line.kind === "service") {
+        return;
+      }
+
       const name = line.name.trim();
       const price = toAmount(line.amount);
-      const menuItem = findMenuItemBySearch(name, menuItems);
+      const menuItem = findMenuItemBySearch(name, menuItems, "extra");
       const commission = toAmount(line.commission);
 
       if (!name && price <= 0) {
@@ -1689,7 +1739,7 @@ function buildOrdersFromLineDrafts(
       });
     });
 
-    if (extras.length === 0) {
+    if (!serviceName && servicePrice <= 0 && extras.length === 0) {
       return;
     }
 
@@ -1700,9 +1750,9 @@ function buildOrdersFromLineDrafts(
           : crypto.randomUUID(),
       employeeId: employee.id,
       employeeName: employee.name,
-      serviceName: `${options.fallbackName} ${orderNumber}`,
-      price: 0,
-      commission: 0,
+      serviceName: serviceName || `${options.fallbackName} ${orderNumber}`,
+      price: servicePrice,
+      commission: serviceCommission,
       extras,
       paymentMethod: options.paymentMethod,
       giftCardAmount:
@@ -1734,7 +1784,11 @@ function buildOrdersFromLineDrafts(
   return nextOrders;
 }
 
-function findMenuItemBySearch(searchText: string, menuItems: MenuItem[]) {
+function findMenuItemBySearch(
+  searchText: string,
+  menuItems: MenuItem[],
+  kind?: OrderLineDraft["kind"],
+) {
   const normalizedSearch = normalizeMenuSearchText(searchText);
 
   if (!normalizedSearch) {
@@ -1742,6 +1796,10 @@ function findMenuItemBySearch(searchText: string, menuItems: MenuItem[]) {
   }
 
   return menuItems.find((item) => {
+    if (!menuItemMatchesLineKind(item, kind)) {
+      return false;
+    }
+
     const aliases = getMenuAliases(item).map(normalizeMenuSearchText);
 
     return (
@@ -1752,7 +1810,11 @@ function findMenuItemBySearch(searchText: string, menuItems: MenuItem[]) {
   });
 }
 
-function getMenuSearchResults(searchText: string, menuItems: MenuItem[]) {
+function getMenuSearchResults(
+  searchText: string,
+  menuItems: MenuItem[],
+  kind?: OrderLineDraft["kind"],
+) {
   const normalizedSearch = normalizeMenuSearchText(searchText);
 
   if (!normalizedSearch) {
@@ -1760,7 +1822,7 @@ function getMenuSearchResults(searchText: string, menuItems: MenuItem[]) {
   }
 
   return menuItems.filter((item) => {
-    if (!item.active) {
+    if (!item.active || !menuItemMatchesLineKind(item, kind)) {
       return false;
     }
 
@@ -1780,6 +1842,19 @@ function getMenuSearchResults(searchText: string, menuItems: MenuItem[]) {
       aliases.some((alias) => alias.startsWith(normalizedSearch))
     );
   });
+}
+
+function menuItemMatchesLineKind(
+  item: MenuItem,
+  kind?: OrderLineDraft["kind"],
+) {
+  if (!kind) {
+    return true;
+  }
+
+  const isExtraItem = item.type === "extra" || item.type === "additional-services";
+
+  return kind === "extra" ? isExtraItem : !isExtraItem;
 }
 
 function getMenuAliases(item: MenuItem) {
