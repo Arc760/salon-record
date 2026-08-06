@@ -164,6 +164,8 @@ const text = {
     itemName: "项目名称",
     itemAmount: "金额",
     itemCommission: "提成",
+    addProject: "添加项目",
+    addExtraLine: "添加额外设施",
     saveEmployeeOrders: "保存当前员工项目",
     expense: "支出",
     addExpense: "添加支出",
@@ -225,6 +227,8 @@ const text = {
     itemName: "Item Name",
     itemAmount: "Amount",
     itemCommission: "Commission",
+    addProject: "Add Item",
+    addExtraLine: "Add Extra",
     saveEmployeeOrders: "Save Employee Orders",
     expense: "Expense",
     addExpense: "Add Expense",
@@ -494,6 +498,16 @@ export default function DailyRecordPage() {
       ...currentDrafts,
       [orderNumber]: [
         ...(currentDrafts[orderNumber] ?? []),
+        createOrderLineDraft("service"),
+      ],
+    }));
+  }
+
+  function addExtraOrderLine(orderNumber: string) {
+    setOrderLineDrafts((currentDrafts) => ({
+      ...currentDrafts,
+      [orderNumber]: [
+        ...(currentDrafts[orderNumber] ?? []),
         createOrderLineDraft("extra"),
       ],
     }));
@@ -503,9 +517,12 @@ export default function DailyRecordPage() {
     setOrderLineDrafts((currentDrafts) => {
       const currentLines = currentDrafts[orderNumber] ?? [];
       const removedLine = currentLines.find((line) => line.id === lineId);
+      const firstServiceLineId = currentLines.find(
+        (line) => line.kind === "service",
+      )?.id;
       const nextLines = currentLines.filter((line) => line.id !== lineId);
 
-      if (removedLine?.kind === "service") {
+      if (removedLine?.kind === "service" && removedLine.id === firstServiceLineId) {
         return {
           ...currentDrafts,
           [orderNumber]: [createOrderLineDraft(), ...nextLines],
@@ -947,11 +964,16 @@ export default function DailyRecordPage() {
                           line.kind,
                         );
                         const isServiceLine = line.kind === "service";
+                        const firstServiceLineId = (
+                          orderLineDrafts[activeOrderNumber] ?? []
+                        ).find((draftLine) => draftLine.kind === "service")?.id;
+                        const isPrimaryServiceLine =
+                          isServiceLine && line.id === firstServiceLineId;
 
                         return (
                           <div
                             key={line.id}
-                            className="grid grid-cols-1 gap-2 rounded-xl border border-gray-200 p-2 sm:grid-cols-[1fr_7rem_7rem_auto_auto]"
+                            className="grid grid-cols-1 gap-2 rounded-xl border border-gray-200 p-2 sm:grid-cols-[1fr_7rem_7rem_auto_auto_auto]"
                           >
                             <div className="min-w-0">
                               <p className="mb-1 text-xs font-semibold text-gray-500">
@@ -1034,19 +1056,27 @@ export default function DailyRecordPage() {
                             <button
                               type="button"
                               onClick={() => addOrderLine(activeOrderNumber)}
-                              title={t.extraName}
-                              className="min-h-12 rounded-xl border border-gray-300 px-3 text-lg font-bold text-gray-700 sm:mt-5"
+                              title={t.addProject}
+                              className="min-h-12 rounded-xl border border-gray-300 px-3 text-sm font-bold text-gray-700 sm:mt-5"
                             >
                               +
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => addExtraOrderLine(activeOrderNumber)}
+                              title={t.addExtraLine}
+                              className="min-h-12 rounded-xl border border-gray-300 px-3 text-sm font-bold text-gray-700 sm:mt-5"
+                            >
+                              {t.addExtraLine}
                             </button>
                             <button
                               type="button"
                               onClick={() =>
                                 removeOrderLine(activeOrderNumber, line.id)
                               }
-                              disabled={isServiceLine}
+                              disabled={isPrimaryServiceLine}
                               className={`min-h-12 rounded-xl border px-3 text-lg font-bold ${
-                                isServiceLine
+                                isPrimaryServiceLine
                                   ? "border-gray-200 text-gray-300"
                                   : "border-red-200 text-red-600"
                               } sm:mt-5`}
@@ -1717,13 +1747,13 @@ function buildOrdersFromLineDrafts(
     const extras: OrderExtra[] = [];
 
     lines.forEach((line) => {
-      if (line.id === serviceLine?.id || line.kind === "service") {
+      if (line.id === serviceLine?.id) {
         return;
       }
 
       const name = line.name.trim();
       const price = toAmount(line.amount);
-      const menuItem = findMenuItemBySearch(name, menuItems, "extra");
+      const menuItem = findMenuItemBySearch(name, menuItems, line.kind);
       const commission = toAmount(line.commission);
 
       if (!name && price <= 0) {
