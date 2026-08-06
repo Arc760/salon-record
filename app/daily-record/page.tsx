@@ -649,7 +649,12 @@ export default function DailyRecordPage() {
             ...line,
             name: value,
             amount: nextAmount,
-            commission: getLineCommissionValue(menuItem, nextAmount, line.commission),
+            commission: getLineCommissionValue(
+              menuItem,
+              nextAmount,
+              line.commission,
+              value,
+            ),
           };
         }
 
@@ -659,7 +664,7 @@ export default function DailyRecordPage() {
           return {
             ...line,
             amount: value,
-            commission: getLineCommissionValue(menuItem, value, line.commission),
+            commission: getLineCommissionValue(menuItem, value, line.commission, line.name),
           };
         }
 
@@ -684,7 +689,7 @@ export default function DailyRecordPage() {
               ...line,
               name: item.name,
               amount: item.price > 0 ? String(item.price) : "",
-              commission: getLineCommissionValue(item, String(item.price), ""),
+              commission: getLineCommissionValue(item, String(item.price), "", item.name),
             }
           : line,
       ),
@@ -1854,7 +1859,7 @@ function buildOrdersFromLineDrafts(
     );
     const serviceCommission =
       toAmount(serviceLine?.commission) ||
-      getMenuItemDefaultCommission(serviceMenuItem, servicePrice);
+      getMenuItemDefaultCommission(serviceMenuItem, servicePrice, serviceName);
     const extras: OrderExtra[] = [];
 
     lines.forEach((line) => {
@@ -1875,7 +1880,7 @@ function buildOrdersFromLineDrafts(
         id: crypto.randomUUID(),
         name: name || `${options.fallbackName} ${orderNumber}`,
         price,
-        commission: commission || getMenuItemDefaultCommission(menuItem, price),
+        commission: commission || getMenuItemDefaultCommission(menuItem, price, name),
       });
     });
 
@@ -2318,10 +2323,11 @@ function getLineCommissionValue(
   menuItem: MenuItem | undefined,
   amountValue: string,
   currentCommission: string,
+  itemName = "",
 ) {
   const amount = toAmount(amountValue);
 
-  if (isNailArtItem(menuItem)) {
+  if (isNailArtItem(menuItem) || isNailArtName(itemName)) {
     return amount > 0 ? formatPlainAmount(amount * 0.2) : "";
   }
 
@@ -2335,8 +2341,9 @@ function getLineCommissionValue(
 function getMenuItemDefaultCommission(
   menuItem: MenuItem | undefined,
   amount: number,
+  itemName = "",
 ) {
-  if (isNailArtItem(menuItem)) {
+  if (isNailArtItem(menuItem) || isNailArtName(itemName)) {
     return roundCurrency(amount * 0.2);
   }
 
@@ -2346,9 +2353,12 @@ function getMenuItemDefaultCommission(
 function isNailArtItem(menuItem: MenuItem | undefined) {
   return (
     menuItem?.id === NAIL_ART_ITEM.id ||
-    normalizeMenuSearchText(menuItem?.name ?? "") ===
-      normalizeMenuSearchText(NAIL_ART_ITEM.name)
+    isNailArtName(menuItem?.name ?? "")
   );
+}
+
+function isNailArtName(name: string) {
+  return normalizeMenuSearchText(name) === normalizeMenuSearchText(NAIL_ART_ITEM.name);
 }
 
 function formatPlainAmount(amount: number) {
