@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AppModal } from "../AppModal";
 import { BottomNav } from "../BottomNav";
+import { DatePickerButton } from "../DatePickerButton";
 import { LanguageSwitcher, useLanguage } from "../useLanguage";
 
 type Expense = {
@@ -95,6 +96,7 @@ export default function ExpensesPage() {
   const [showForm, setShowForm] = useState(false);
   const [showRecordsModal, setShowRecordsModal] = useState(false);
   const closeLabel = language === "zh" ? "关闭" : "Close";
+  const selectDateLabel = language === "zh" ? "选择日期" : "Select Date";
 
   useEffect(() => {
     const loadExpenses = window.setTimeout(() => {
@@ -188,15 +190,15 @@ export default function ExpensesPage() {
               onSubmit={handleSubmit}
               className="flex max-h-[calc(88vh-2.5rem)] flex-col space-y-5 overflow-y-auto"
             >
-          <FormField label={t.date} htmlFor="expense-date">
-            <input
+          <DatePickerButton
               id="expense-date"
-              type="date"
+              label={t.date}
               value={date}
-              onChange={(event) => setDate(event.target.value)}
-              className={inputClassName}
-            />
-          </FormField>
+              closeLabel={closeLabel}
+              selectLabel={selectDateLabel}
+              isEnglish={language === "en"}
+              onChange={setDate}
+          />
 
           <FormField label={t.category} htmlFor="expense-category">
             <select

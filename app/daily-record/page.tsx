@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AppModal } from "../AppModal";
 import { BottomNav } from "../BottomNav";
+import { DatePickerButton } from "../DatePickerButton";
 import { LanguageSwitcher, useLanguage } from "../useLanguage";
 
 type Employee = {
@@ -68,6 +69,12 @@ type GiftCardSale = {
   amount: number;
   paymentMethod: "card" | "cash";
   createdAt: string;
+};
+
+type OrderLineDraft = {
+  id: string;
+  name: string;
+  amount: string;
 };
 
 type CategoryKey = "rent" | "supplies" | "payroll" | "utilities" | "marketing" | "other";
@@ -150,6 +157,11 @@ const text = {
     revenue: "营业额",
     close: "关闭",
     totalOrders: "总单数",
+    orderNumber: "单号",
+    addOrderNumber: "新增单号",
+    itemName: "项目名称",
+    itemAmount: "金额",
+    saveEmployeeOrders: "保存当前员工项目",
     expense: "支出",
     addExpense: "添加支出",
     expenseDate: "支出日期",
@@ -205,6 +217,11 @@ const text = {
     revenue: "Revenue",
     close: "Close",
     totalOrders: "Total Orders",
+    orderNumber: "Order",
+    addOrderNumber: "Add Order",
+    itemName: "Item Name",
+    itemAmount: "Amount",
+    saveEmployeeOrders: "Save Employee Orders",
     expense: "Expense",
     addExpense: "Add Expense",
     expenseDate: "Expense Date",
@@ -259,6 +276,11 @@ export default function DailyRecordPage() {
   const [showRevenueModal, setShowRevenueModal] = useState(false);
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [orderNumbers, setOrderNumbers] = useState(["1"]);
+  const [activeOrderNumber, setActiveOrderNumber] = useState("1");
+  const [orderLineDrafts, setOrderLineDrafts] = useState<Record<string, OrderLineDraft[]>>({
+    "1": [createOrderLineDraft()],
+  });
   const [showGiftCardForm, setShowGiftCardForm] = useState(false);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [expenseCategory, setExpenseCategory] = useState<CategoryKey>("supplies");
@@ -292,6 +314,10 @@ export default function DailyRecordPage() {
     clearDraft: language === "en" ? "Clear" : "清空",
     remainingPayment: language === "en" ? "Remaining Payment" : "剩余付款",
   };
+  const datePickerLabels = {
+    close: language === "en" ? "Close" : "关闭",
+    select: language === "en" ? "Select Date" : "选择日期",
+  };
 
   useEffect(() => {
     const loadData = window.setTimeout(() => {
@@ -306,12 +332,6 @@ export default function DailyRecordPage() {
     return () => window.clearTimeout(loadData);
   }, []);
 
-  const activeServices = menuItems.filter(
-    (item) => item.active && !isExtraMenuItem(item),
-  );
-  const activeExtras = menuItems.filter(
-    (item) => item.active && isExtraMenuItem(item),
-  );
   const selectedRecord = useMemo(
     () => records.find((record) => record.date === date),
     [date, records],
@@ -435,49 +455,6 @@ export default function DailyRecordPage() {
       orderCount: selectedEmployeeOrders.length,
     };
   }, [selectedEmployeeOrders]);
-  const serviceSuggestions = useMemo(() => {
-    const query = serviceName.trim().toLowerCase();
-
-    return query
-      ? activeServices
-          .filter((item) => menuItemMatchesQuery(item, query))
-          .slice(0, 8)
-      : [];
-  }, [activeServices, serviceName]);
-  const extraSuggestions = useMemo(() => {
-    const query = extraName.trim().toLowerCase();
-
-    return query
-      ? activeExtras
-          .filter((item) => menuItemMatchesQuery(item, query))
-          .slice(0, 8)
-      : [];
-  }, [activeExtras, extraName]);
-
-  function fillFromService(name: string) {
-    setServiceName(name);
-    const service = activeServices.find(
-      (item) => item.name.toLowerCase() === name.toLowerCase(),
-    );
-
-    if (service) {
-      setPrice(String(service.price));
-      setCommission(service.commission === 0 ? "" : String(service.commission));
-    }
-  }
-
-  function fillFromExtra(name: string) {
-    setExtraName(name);
-    const extra = activeExtras.find(
-      (item) => item.name.toLowerCase() === name.toLowerCase(),
-    );
-
-    if (extra) {
-      setExtraPrice(String(extra.price));
-      setExtraCommission(extra.commission === 0 ? "" : String(extra.commission));
-    }
-  }
-
   function resetOrderForm() {
     setEditingOrderId(null);
     setServiceName("");
@@ -492,6 +469,74 @@ export default function DailyRecordPage() {
     setGiftCardRemainderMethod("card");
     setSplitCashAmount("");
     setSplitCardAmount("");
+    setOrderNumbers(["1"]);
+    setActiveOrderNumber("1");
+    setOrderLineDrafts({ "1": [createOrderLineDraft()] });
+  }
+
+  function addOrderNumber() {
+    const nextNumber = String(orderNumbers.length + 1);
+
+    setOrderNumbers((currentNumbers) => [...currentNumbers, nextNumber]);
+    setOrderLineDrafts((currentDrafts) => ({
+      ...currentDrafts,
+      [nextNumber]: [createOrderLineDraft()],
+    }));
+    setActiveOrderNumber(nextNumber);
+  }
+
+  function addOrderLine(orderNumber: string) {
+    setOrderLineDrafts((currentDrafts) => ({
+      ...currentDrafts,
+      [orderNumber]: [
+        ...(currentDrafts[orderNumber] ?? []),
+        createOrderLineDraft(),
+      ],
+    }));
+  }
+
+  function removeOrderLine(orderNumber: string, lineId: string) {
+    setOrderLineDrafts((currentDrafts) => {
+      const nextLines = (currentDrafts[orderNumber] ?? []).filter(
+        (line) => line.id !== lineId,
+      );
+
+      return {
+        ...currentDrafts,
+        [orderNumber]: nextLines.length > 0 ? nextLines : [createOrderLineDraft()],
+      };
+    });
+  }
+
+  function updateOrderLine(
+    orderNumber: string,
+    lineId: string,
+    field: keyof Pick<OrderLineDraft, "name" | "amount">,
+    value: string,
+  ) {
+    setOrderLineDrafts((currentDrafts) => ({
+      ...currentDrafts,
+      [orderNumber]: (currentDrafts[orderNumber] ?? []).map((line) => {
+        if (line.id !== lineId) {
+          return line;
+        }
+
+        if (field === "name") {
+          const menuItem = findMenuItemByName(value, menuItems);
+
+          return {
+            ...line,
+            name: value,
+            amount: menuItem ? String(menuItem.price) : line.amount,
+          };
+        }
+
+        return {
+          ...line,
+          amount: value,
+        };
+      }),
+    }));
   }
 
   function openAddOrderForm() {
@@ -543,15 +588,17 @@ export default function DailyRecordPage() {
   function openEditOrder(order: EmployeeOrder) {
     setEditingOrderId(order.id);
     setEmployeeId(order.employeeId);
-    setServiceName(order.serviceName);
-    setPrice(order.price === 0 ? "" : String(order.price));
-    setCommission(order.commission === 0 ? "" : String(order.commission));
-    const firstExtra = order.extras[0];
-    setExtraName(firstExtra?.name ?? "");
-    setExtraPrice(firstExtra && firstExtra.price > 0 ? String(firstExtra.price) : "");
-    setExtraCommission(
-      firstExtra && firstExtra.commission > 0 ? String(firstExtra.commission) : "",
-    );
+    setServiceName("");
+    setPrice("");
+    setCommission("");
+    setExtraName("");
+    setExtraPrice("");
+    setExtraCommission("");
+    setOrderNumbers(["1"]);
+    setActiveOrderNumber("1");
+    setOrderLineDrafts({
+      "1": orderToLineDrafts(order),
+    });
     setDiscountAmount(
       order.discountAmount && order.discountAmount > 0
         ? String(order.discountAmount)
@@ -576,71 +623,39 @@ export default function DailyRecordPage() {
 
   function addOrder() {
     const employee = employees.find((item) => item.id === employeeId);
-    const numericPrice = toAmount(price);
-    const numericCommission = toAmount(commission);
-    const hasService = serviceName.trim() || numericPrice > 0;
-    const hasExtra =
-      extraName.trim() || toAmount(extraPrice) > 0 || toAmount(extraCommission) > 0;
+    const nextOrders = buildOrdersFromLineDrafts(
+      orderNumbers,
+      orderLineDrafts,
+      employee,
+      menuItems,
+      {
+        editingOrderId,
+        existingOrder: orders.find((order) => order.id === editingOrderId),
+        paymentMethod,
+        giftCardAmount: toAmount(giftCardAmount),
+        giftCardRemainderMethod,
+        discountAmount: toAmount(discountAmount),
+        splitCashAmount: toAmount(splitCashAmount),
+        splitCardAmount: toAmount(splitCardAmount),
+        fallbackName: t.orderNumber,
+      },
+    );
 
-    if (!employee || (!hasService && !hasExtra)) {
+    if (!employee || nextOrders.length === 0) {
       window.alert(t.invalidOrder);
       return;
     }
 
-    const matchedService = activeServices.find(
-      (item) => item.name.toLowerCase() === serviceName.trim().toLowerCase(),
-    );
-    const extra =
-      hasExtra
-        ? [
-            {
-              id: crypto.randomUUID(),
-              name: extraName.trim() || t.extraName,
-              price: toAmount(extraPrice),
-              commission: toAmount(extraCommission),
-            },
-          ]
-        : [];
-    const nextOrder: EmployeeOrder = {
-      id: editingOrderId ?? crypto.randomUUID(),
-      employeeId: employee.id,
-      employeeName: employee.name,
-      serviceId: matchedService?.id,
-      serviceName: serviceName.trim() || extraName.trim() || t.extraName,
-      price: Math.max(0, numericPrice),
-      commission: Math.max(0, numericCommission),
-      extras: extra,
-      paymentMethod,
-      giftCardAmount:
-        paymentMethod === "gift-card" ? Math.max(0, toAmount(giftCardAmount)) : 0,
-      giftCardRemainderMethod:
-        paymentMethod === "gift-card" ? giftCardRemainderMethod : undefined,
-      discountAmount: Math.max(0, toAmount(discountAmount)),
-      cashAmount:
-        paymentMethod === "split" ||
-        (paymentMethod === "gift-card" && giftCardRemainderMethod === "split")
-          ? Math.max(0, toAmount(splitCashAmount))
-          : 0,
-      cardAmount:
-        paymentMethod === "split" ||
-        (paymentMethod === "gift-card" && giftCardRemainderMethod === "split")
-          ? Math.max(0, toAmount(splitCardAmount))
-          : 0,
-      createdAt:
-        orders.find((order) => order.id === editingOrderId)?.createdAt ??
-        new Date().toISOString(),
-    };
-
     setOrders((currentOrders) =>
       editingOrderId
         ? currentOrders.map((order) =>
-            order.id === editingOrderId ? nextOrder : order,
+            order.id === editingOrderId ? nextOrders[0] : order,
           )
-        : [...currentOrders, nextOrder],
+        : [...currentOrders, ...nextOrders],
     );
     window.localStorage.removeItem(ORDER_DRAFT_KEY);
     resetOrderForm();
-    setShowOrderForm(true);
+    setShowOrderForm(false);
   }
 
   function addGiftCardSale() {
@@ -750,15 +765,15 @@ export default function DailyRecordPage() {
         <form onSubmit={handleSubmit} className="space-y-3">
           <section className="rounded-xl border border-gray-200 p-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <FormField label={t.date} htmlFor="record-date">
-                <input
-                  id="record-date"
-                  type="date"
-                  value={date}
-                  onChange={(event) => setDate(event.target.value)}
-                  className={inputClassName}
-                />
-              </FormField>
+              <DatePickerButton
+                id="record-date"
+                label={t.date}
+                value={date}
+                closeLabel={datePickerLabels.close}
+                selectLabel={datePickerLabels.select}
+                isEnglish={language === "en"}
+                onChange={setDate}
+              />
               <Link
                 href="/services"
                 className="shrink-0 rounded-xl border border-gray-300 px-3 py-3 text-center text-sm font-semibold text-gray-700"
@@ -862,91 +877,82 @@ export default function DailyRecordPage() {
                       ))}
                     </div>
                   </div>
-                  <FormField label={t.serviceName} htmlFor="service-name">
-                    <input
-                      id="service-name"
-                      value={serviceName}
-                      onChange={(event) => fillFromService(event.target.value)}
-                      placeholder={t.servicePlaceholder}
-                      className={inputClassName}
-                    />
-                    {serviceSuggestions.length > 0 && (
-                      <div className="mt-2 max-h-48 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-2">
-                        {serviceSuggestions.map((item) => (
+                  <div>
+                    <div className="mb-3 flex items-center gap-2 overflow-x-auto pb-1">
+                      {orderNumbers.map((orderNumber) => (
+                        <button
+                          key={orderNumber}
+                          type="button"
+                          onClick={() => setActiveOrderNumber(orderNumber)}
+                          className={`min-h-10 shrink-0 rounded-xl border px-4 text-sm font-semibold ${
+                            activeOrderNumber === orderNumber
+                              ? "border-gray-900 bg-gray-900 text-white"
+                              : "border-gray-300 text-gray-700"
+                          }`}
+                        >
+                          {t.orderNumber} {orderNumber}
+                        </button>
+                      ))}
+                      {!editingOrderId && (
+                        <button
+                          type="button"
+                          onClick={addOrderNumber}
+                          className="min-h-10 shrink-0 rounded-xl border border-gray-300 px-4 text-sm font-semibold text-gray-700"
+                        >
+                          +
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      {(orderLineDrafts[activeOrderNumber] ?? []).map((line) => (
+                        <div
+                          key={line.id}
+                          className="grid grid-cols-1 gap-2 rounded-xl border border-gray-200 p-2 sm:grid-cols-[1fr_7rem_auto_auto]"
+                        >
+                          <input
+                            value={line.name}
+                            onChange={(event) =>
+                              updateOrderLine(
+                                activeOrderNumber,
+                                line.id,
+                                "name",
+                                event.target.value,
+                              )
+                            }
+                            placeholder={t.itemName}
+                            className={inputClassName}
+                          />
+                          <MoneyInput
+                            id={`line-amount-${line.id}`}
+                            value={line.amount}
+                            onChange={(value) =>
+                              updateOrderLine(
+                                activeOrderNumber,
+                                line.id,
+                                "amount",
+                                value,
+                              )
+                            }
+                            placeholder={t.itemAmount}
+                          />
                           <button
-                            key={item.id}
                             type="button"
-                            onClick={() => fillFromService(item.name)}
-                            className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-sm hover:bg-gray-50"
+                            onClick={() => addOrderLine(activeOrderNumber)}
+                            className="min-h-12 rounded-xl border border-gray-300 px-3 text-lg font-bold text-gray-700"
                           >
-                            <span className="font-semibold text-gray-900">
-                              {item.name}
-                            </span>
-                            <span className="shrink-0 text-gray-600">
-                              {formatCurrency(item.price)}
-                            </span>
+                            +
                           </button>
-                        ))}
-                      </div>
-                    )}
-                  </FormField>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <FormField label={t.price} htmlFor="service-price">
-                      <MoneyInput id="service-price" value={price} onChange={setPrice} />
-                    </FormField>
-                    <FormField label={t.commission} htmlFor="service-commission">
-                      <MoneyInput
-                        id="service-commission"
-                        value={commission}
-                        onChange={setCommission}
-                        placeholder={orderLabels.noCommission}
-                      />
-                    </FormField>
-                  </div>
-                  <FormField label={t.extraName} htmlFor="extra-name">
-                    <input
-                      id="extra-name"
-                      value={extraName}
-                      onChange={(event) => fillFromExtra(event.target.value)}
-                      placeholder={t.extraPlaceholder}
-                      className={inputClassName}
-                    />
-                    {extraSuggestions.length > 0 && (
-                      <div className="mt-2 max-h-48 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-2">
-                        {extraSuggestions.map((item) => (
                           <button
-                            key={item.id}
                             type="button"
-                            onClick={() => fillFromExtra(item.name)}
-                            className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-sm hover:bg-gray-50"
+                            onClick={() => removeOrderLine(activeOrderNumber, line.id)}
+                            className="min-h-12 rounded-xl border border-red-200 px-3 text-lg font-bold text-red-600"
                           >
-                            <span className="font-semibold text-gray-900">
-                              {item.name}
-                            </span>
-                            <span className="shrink-0 text-gray-600">
-                              {formatCurrency(item.price)}
-                            </span>
+                            x
                           </button>
-                        ))}
-                      </div>
-                    )}
-                  </FormField>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <FormField label={t.extraPrice} htmlFor="extra-price">
-                      <MoneyInput
-                        id="extra-price"
-                        value={extraPrice}
-                        onChange={setExtraPrice}
-                      />
-                    </FormField>
-                    <FormField label={t.extraCommission} htmlFor="extra-commission">
-                      <MoneyInput
-                        id="extra-commission"
-                        value={extraCommission}
-                        onChange={setExtraCommission}
-                        placeholder={orderLabels.noCommission}
-                      />
-                    </FormField>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <FormField label={orderLabels.discount} htmlFor="discount-amount">
                     <MoneyInput
@@ -1046,7 +1052,7 @@ export default function DailyRecordPage() {
                     onClick={addOrder}
                     className="min-h-11 w-full rounded-xl border border-gray-300 px-4 text-sm font-semibold text-gray-700"
                   >
-                    {editingOrderId ? orderLabels.saveOrder : t.addOrder}
+                    {editingOrderId ? orderLabels.saveOrder : t.saveEmployeeOrders}
                   </button>
                   <button
                     type="button"
@@ -1250,15 +1256,15 @@ export default function DailyRecordPage() {
             contentClassName="space-y-4 overflow-y-auto p-5"
           >
             <form onSubmit={addExpense} className="space-y-4">
-              <FormField label={t.expenseDate} htmlFor="expense-date">
-                <input
+              <DatePickerButton
                   id="expense-date"
-                  type="date"
+                  label={t.expenseDate}
                   value={date}
-                  onChange={(event) => setDate(event.target.value)}
-                  className={inputClassName}
-                />
-              </FormField>
+                  closeLabel={datePickerLabels.close}
+                  selectLabel={datePickerLabels.select}
+                  isEnglish={language === "en"}
+                  onChange={setDate}
+              />
               <FormField label={t.expenseCategory} htmlFor="expense-category">
                 <select
                   id="expense-category"
@@ -1535,6 +1541,127 @@ function OrderRevenueModal({
 const inputClassName =
   "min-h-12 w-full min-w-0 max-w-full rounded-xl border border-gray-300 bg-white px-4 text-base text-gray-900 outline-none focus:border-gray-900";
 
+function createOrderLineDraft(): OrderLineDraft {
+  return {
+    id: crypto.randomUUID(),
+    name: "",
+    amount: "",
+  };
+}
+
+function orderToLineDrafts(order: EmployeeOrder): OrderLineDraft[] {
+  const lines = order.extras.length
+    ? order.extras.map((extra) => ({
+        id: crypto.randomUUID(),
+        name: extra.name,
+        amount: extra.price > 0 ? String(extra.price) : "",
+      }))
+    : [
+        {
+          id: crypto.randomUUID(),
+          name: order.serviceName,
+          amount: order.price > 0 ? String(order.price) : "",
+        },
+      ];
+
+  return lines.length > 0 ? lines : [createOrderLineDraft()];
+}
+
+function findMenuItemByName(name: string, menuItems: MenuItem[]) {
+  const normalizedName = name.trim().toLowerCase();
+
+  return menuItems.find((item) => item.name.toLowerCase() === normalizedName);
+}
+
+function buildOrdersFromLineDrafts(
+  orderNumbers: string[],
+  orderLineDrafts: Record<string, OrderLineDraft[]>,
+  employee: Employee | undefined,
+  menuItems: MenuItem[],
+  options: {
+    editingOrderId: string | null;
+    existingOrder?: EmployeeOrder;
+    paymentMethod: PaymentMethod;
+    giftCardAmount: number;
+    giftCardRemainderMethod: "card" | "cash" | "split";
+    discountAmount: number;
+    splitCashAmount: number;
+    splitCardAmount: number;
+    fallbackName: string;
+  },
+): EmployeeOrder[] {
+  if (!employee) {
+    return [];
+  }
+
+  const now = new Date().toISOString();
+  const nextOrders: EmployeeOrder[] = [];
+
+  orderNumbers.forEach((orderNumber, index) => {
+    const extras: OrderExtra[] = [];
+
+    (orderLineDrafts[orderNumber] ?? []).forEach((line) => {
+      const name = line.name.trim();
+      const price = toAmount(line.amount);
+      const menuItem = findMenuItemByName(name, menuItems);
+
+      if (!name && price <= 0) {
+        return;
+      }
+
+      extras.push({
+        id: crypto.randomUUID(),
+        name: name || `${options.fallbackName} ${orderNumber}`,
+        price,
+        commission: menuItem?.commission ?? 0,
+      });
+    });
+
+    if (extras.length === 0) {
+      return;
+    }
+
+    nextOrders.push({
+      id:
+        options.editingOrderId && index === 0
+          ? options.editingOrderId
+          : crypto.randomUUID(),
+      employeeId: employee.id,
+      employeeName: employee.name,
+      serviceName: `${options.fallbackName} ${orderNumber}`,
+      price: 0,
+      commission: 0,
+      extras,
+      paymentMethod: options.paymentMethod,
+      giftCardAmount:
+        options.paymentMethod === "gift-card" ? options.giftCardAmount : 0,
+      giftCardRemainderMethod:
+        options.paymentMethod === "gift-card"
+          ? options.giftCardRemainderMethod
+          : undefined,
+      discountAmount: options.discountAmount,
+      cashAmount:
+        options.paymentMethod === "split" ||
+        (options.paymentMethod === "gift-card" &&
+          options.giftCardRemainderMethod === "split")
+          ? options.splitCashAmount
+          : 0,
+      cardAmount:
+        options.paymentMethod === "split" ||
+        (options.paymentMethod === "gift-card" &&
+          options.giftCardRemainderMethod === "split")
+          ? options.splitCardAmount
+          : 0,
+      createdAt:
+        options.editingOrderId && index === 0
+          ? (options.existingOrder?.createdAt ?? now)
+          : now,
+    });
+  });
+
+  return nextOrders;
+}
+
 function buildCommissionEntries(orders: EmployeeOrder[]) {
   const totals = new Map<string, CommissionEntry>();
 
@@ -1668,111 +1795,6 @@ function getOrderCommission(order: EmployeeOrder) {
     order.commission +
     order.extras.reduce((sum, extra) => sum + extra.commission, 0)
   );
-}
-
-function isExtraMenuItem(item: MenuItem) {
-  return item.type === "extra" || item.type === "additional-services";
-}
-
-function menuItemMatchesQuery(item: MenuItem, query: string) {
-  const normalizedQuery = normalizeSearchText(query);
-
-  if (!normalizedQuery) {
-    return false;
-  }
-
-  const searchableText = [
-    item.name,
-    item.id,
-    item.type,
-    getInitials(item.name),
-    ...getMenuAliases(item),
-  ]
-    .map(normalizeSearchText)
-    .join(" ");
-
-  if (normalizedQuery.length <= 2) {
-    return getMenuAliases(item)
-      .map(normalizeSearchText)
-      .some((alias) => alias === normalizedQuery);
-  }
-
-  return searchableText.includes(normalizedQuery);
-}
-
-function getMenuAliases(item: MenuItem) {
-  const aliases = new Set<string>(item.aliases ?? []);
-  const normalizedName = normalizeSearchText(item.name);
-
-  aliases.add(getInitials(item.name));
-
-  if (normalizedName.includes("full set")) {
-    aliases.add("fs");
-  }
-
-  if (normalizedName.includes("fill in")) {
-    aliases.add("fi");
-  }
-
-  if (normalizedName.includes("dipped")) {
-    aliases.add("dip");
-    aliases.add("dp");
-  }
-
-  if (normalizedName === "regular pedicure") {
-    aliases.add("p");
-    aliases.add("ped");
-    aliases.add("pedi");
-  }
-
-  if (normalizedName === "regular gel pedicure") {
-    aliases.add("gp");
-    aliases.add("rgp");
-  }
-
-  if (
-    normalizedName === "classic manicure" ||
-    normalizedName === "regular manicure"
-  ) {
-    aliases.add("m");
-    aliases.add("mani");
-  }
-
-  if (normalizedName === "gel manicure") {
-    aliases.add("gm");
-  }
-
-  if (normalizedName === "gel color") {
-    aliases.add("gc");
-  }
-
-  if (normalizedName.includes("acrylic")) {
-    aliases.add("ac");
-    aliases.add("a");
-  }
-
-  if (normalizedName.includes("uv gel")) {
-    aliases.add("uv");
-  }
-
-  if (normalizedName.includes("french")) {
-    aliases.add("fr");
-  }
-
-  return [...aliases].filter(Boolean);
-}
-
-function getInitials(value: string) {
-  return value
-    .split(/[^a-zA-Z0-9]+/)
-    .filter(Boolean)
-    .map((part) => part[0])
-    .join("")
-    .toLowerCase();
-}
-
-function normalizeSearchText(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 function readStorage<T>(key: string, fallback: T): T {
