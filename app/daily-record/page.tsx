@@ -108,8 +108,18 @@ type DailyRecord = {
   updatedAt: string;
 };
 
+type DailyRecordDraft = {
+  date: string;
+  note: string;
+  orders: EmployeeOrder[];
+  giftCardSales: GiftCardSale[];
+  legacyCommissions: CommissionEntry[];
+  updatedAt: string;
+};
+
 const EMPLOYEES_KEY = "salon-record-employees";
 const DAILY_RECORDS_KEY = "salon-record-daily-records";
+const DAILY_RECORD_DRAFTS_KEY = "salon-record-daily-record-drafts";
 const EXPENSES_KEY = "salon-record-expenses";
 const MENU_KEY = "salon-record-service-menu";
 const ORDER_DRAFT_KEY = "salon-record-order-draft";
@@ -258,6 +268,7 @@ export default function DailyRecordPage() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [records, setRecords] = useState<DailyRecord[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [recordDataLoaded, setRecordDataLoaded] = useState(false);
   const [date, setDate] = useState(getTodayDate());
   const [note, setNote] = useState("");
   const [orders, setOrders] = useState<EmployeeOrder[]>([]);
@@ -335,6 +346,7 @@ export default function DailyRecordPage() {
       setMenuItems(readStorage<MenuItem[]>(MENU_KEY, []));
       setRecords(readStorage<DailyRecord[]>(DAILY_RECORDS_KEY, []));
       setExpenses(readStorage<Expense[]>(EXPENSES_KEY, []));
+      setRecordDataLoaded(true);
     }, 0);
 
     return () => window.clearTimeout(loadData);
@@ -346,15 +358,35 @@ export default function DailyRecordPage() {
   );
 
   useEffect(() => {
+    if (!recordDataLoaded) {
+      return;
+    }
+
     const loadRecord = window.setTimeout(() => {
+      const drafts = readStorage<Record<string, DailyRecordDraft>>(
+        DAILY_RECORD_DRAFTS_KEY,
+        {},
+      );
+      const selectedDraft = drafts[date];
+
+      if (selectedDraft) {
+        setNote(selectedDraft.note);
+        setOrders(selectedDraft.orders);
+        setGiftCardSales(selectedDraft.giftCardSales);
+        setLegacyCommissions(selectedDraft.legacyCommissions);
+        return;
+      }
+
       setNote(selectedRecord?.note ?? "");
       setOrders(selectedRecord?.orders ?? []);
       setGiftCardSales(selectedRecord?.giftCardSales ?? []);
-      setLegacyCommissions(selectedRecord?.orders ? [] : selectedRecord?.commissions ?? []);
+      setLegacyCommissions(
+        selectedRecord?.orders ? [] : selectedRecord?.commissions ?? [],
+      );
     }, 0);
 
     return () => window.clearTimeout(loadRecord);
-  }, [selectedRecord]);
+  }, [date, recordDataLoaded, selectedRecord]);
 
   useEffect(() => {
     if (!showOrderForm || editingOrderId) {
@@ -412,6 +444,56 @@ export default function DailyRecordPage() {
     showOrderForm,
     splitCardAmount,
     splitCashAmount,
+  ]);
+
+  useEffect(() => {
+    if (!recordDataLoaded) {
+      return;
+    }
+
+    const saveDraft = window.setTimeout(() => {
+      const drafts = readStorage<Record<string, DailyRecordDraft>>(
+        DAILY_RECORD_DRAFTS_KEY,
+        {},
+      );
+      const draft: DailyRecordDraft = {
+        date,
+        note,
+        orders,
+        giftCardSales,
+        legacyCommissions,
+        updatedAt: new Date().toISOString(),
+      };
+      const hasDraftContent =
+        note.trim() !== "" ||
+        orders.length > 0 ||
+        giftCardSales.length > 0 ||
+        legacyCommissions.some((entry) => entry.amount > 0);
+      const savedDraft = selectedRecord
+        ? buildDraftFromSavedRecord(selectedRecord)
+        : undefined;
+
+      if (!hasDraftContent || draftsMatchSavedRecord(draft, savedDraft)) {
+        delete drafts[date];
+      } else {
+        drafts[date] = draft;
+      }
+
+      window.localStorage.setItem(
+        DAILY_RECORD_DRAFTS_KEY,
+        JSON.stringify(drafts),
+      );
+    }, 150);
+
+    return () => window.clearTimeout(saveDraft);
+  }, [
+    date,
+    giftCardSales,
+    legacyCommissions,
+    note,
+    orders,
+    recordDataLoaded,
+    selectedRecord,
   ]);
 
   const totals = useMemo(() => {
@@ -794,6 +876,7 @@ export default function DailyRecordPage() {
 
     setRecords(nextRecords);
     window.localStorage.setItem(DAILY_RECORDS_KEY, JSON.stringify(nextRecords));
+    removeDailyRecordDraft(date);
     window.alert(t.saved);
   }
 
@@ -2139,6 +2222,46 @@ function getOrderCommission(order: EmployeeOrder) {
     order.commission +
     order.extras.reduce((sum, extra) => sum + extra.commission, 0)
   );
+}
+
+function buildDraftFromSavedRecord(record: DailyRecord): DailyRecordDraft {
+  return {
+    date: record.date,
+    note: record.note,
+    orders: record.orders ?? [],
+    giftCardSales: record.giftCardSales ?? [],
+    legacyCommissions: record.orders ? [] : record.commissions,
+    updatedAt: record.updatedAt,
+  };
+}
+
+function draftsMatchSavedRecord(
+  draft: DailyRecordDraft,
+  savedDraft: DailyRecordDraft | undefined,
+) {
+  if (!savedDraft) {
+    return false;
+  }
+
+  return (
+    draft.date === savedDraft.date &&
+    draft.note.trim() === savedDraft.note.trim() &&
+    JSON.stringify(draft.orders) === JSON.stringify(savedDraft.orders) &&
+    JSON.stringify(draft.giftCardSales) ===
+      JSON.stringify(savedDraft.giftCardSales) &&
+    JSON.stringify(draft.legacyCommissions) ===
+      JSON.stringify(savedDraft.legacyCommissions)
+  );
+}
+
+function removeDailyRecordDraft(date: string) {
+  const drafts = readStorage<Record<string, DailyRecordDraft>>(
+    DAILY_RECORD_DRAFTS_KEY,
+    {},
+  );
+
+  delete drafts[date];
+  window.localStorage.setItem(DAILY_RECORD_DRAFTS_KEY, JSON.stringify(drafts));
 }
 
 function readStorage<T>(key: string, fallback: T): T {
