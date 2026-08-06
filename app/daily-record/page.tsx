@@ -2110,7 +2110,7 @@ function getInitials(value: string) {
 }
 
 function normalizeMenuSearchText(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return value.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 }
 
 function buildCommissionEntries(orders: EmployeeOrder[]) {
@@ -2358,7 +2358,7 @@ function isNailArtItem(menuItem: MenuItem | undefined) {
 }
 
 function isNailArtName(name: string) {
-  return normalizeMenuSearchText(name) === normalizeMenuSearchText(NAIL_ART_ITEM.name);
+  return name.trim().toLowerCase() === NAIL_ART_ITEM.name.toLowerCase();
 }
 
 function formatPlainAmount(amount: number) {
