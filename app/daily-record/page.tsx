@@ -963,6 +963,15 @@ export default function DailyRecordPage() {
                           menuItems,
                           line.kind,
                         );
+                        const selectedMenuItem = findMenuItemBySearch(
+                          line.name,
+                          menuItems,
+                          line.kind,
+                        );
+                        const showSearchResults =
+                          searchResults.length > 0 &&
+                          normalizeMenuSearchText(line.name) !==
+                            normalizeMenuSearchText(selectedMenuItem?.name ?? "");
                         const isServiceLine = line.kind === "service";
                         const firstServiceLineId = (
                           orderLineDrafts[activeOrderNumber] ?? []
@@ -996,7 +1005,7 @@ export default function DailyRecordPage() {
                                 }
                                 className={inputClassName}
                               />
-                              {searchResults.length > 0 && (
+                              {showSearchResults && (
                                 <div className="mt-2 max-h-52 overflow-y-auto rounded-xl border border-gray-200 bg-white">
                                   {searchResults.map((item) => (
                                     <button
