@@ -91,6 +91,7 @@ const text = {
     undo: "取消结算",
     empty: "这一周还没有员工工资数据",
     summary: "周结合计",
+    exportCsv: "导出本周CSV",
   },
   en: {
     back: "← Back Home",
@@ -108,6 +109,7 @@ const text = {
     undo: "Undo",
     empty: "No payroll data for this week",
     summary: "Weekly Total",
+    exportCsv: "Export Week CSV",
   },
 };
 
@@ -213,6 +215,13 @@ export default function WeeklyPayPage() {
         <section className="mb-3 rounded-xl bg-gray-900 p-4 text-white">
           <p className="text-sm text-gray-300">{t.summary}</p>
           <p className="mt-1 text-2xl font-bold">{formatCurrency(total)}</p>
+          <button
+            type="button"
+            onClick={() => exportWeeklyPayrollCsv(rows, weekStart, weekEnd)}
+            className="mt-3 min-h-10 rounded-xl bg-white px-4 text-sm font-semibold text-gray-900"
+          >
+            {t.exportCsv}
+          </button>
         </section>
 
         {rows.length === 0 ? (
@@ -474,6 +483,58 @@ function readStorage<T>(key: string, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+function exportWeeklyPayrollCsv(
+  rows: WeeklyRow[],
+  weekStart: string,
+  weekEnd: string,
+) {
+  const csvRows = [
+    [
+      "weekStart",
+      "weekEnd",
+      "employee",
+      "orders",
+      "revenue",
+      "basePay",
+      "commission",
+      "total",
+      "settled",
+    ],
+    ...rows.map((row) => [
+      weekStart,
+      weekEnd,
+      row.employee.name,
+      String(row.orderCount),
+      String(roundCurrency(row.revenue)),
+      String(roundCurrency(row.basePay)),
+      String(roundCurrency(row.commission)),
+      String(roundCurrency(row.total)),
+      row.settled ? "yes" : "no",
+    ]),
+  ];
+  const blob = new Blob(
+    [csvRows.map((row) => row.map(escapeCsvCell).join(",")).join("\n")],
+    { type: "text/csv;charset=utf-8" },
+  );
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = `weekly-pay-${weekStart}-to-${weekEnd}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+function escapeCsvCell(value: string) {
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+function roundCurrency(amount: number) {
+  return Math.round(amount * 100) / 100;
 }
 
 function getTodayDate() {

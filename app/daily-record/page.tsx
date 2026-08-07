@@ -123,6 +123,7 @@ const DAILY_RECORD_DRAFTS_KEY = "salon-record-daily-record-drafts";
 const EXPENSES_KEY = "salon-record-expenses";
 const MENU_KEY = "salon-record-service-menu";
 const ORDER_DRAFT_KEY = "salon-record-order-draft";
+const CLOSED_DATES_KEY = "salon-record-closed-dates";
 const NAIL_ART_ITEM: MenuItem = {
   id: "nail-art-custom",
   type: "additional-services",
@@ -196,6 +197,10 @@ const text = {
     expenseNote: "支出备注",
     expenseSaved: "支出已保存，会显示在支出记录里。",
     invalidExpense: "请选择日期并输入正确的支出金额。",
+    closeDay: "每日关账",
+    reopenDay: "取消关账",
+    closedDay: "这一天已经关账。",
+    editClosedConfirm: "这一天已经关账，确认还要修改吗？",
     categories: {
       rent: "房租",
       supplies: "材料",
@@ -259,6 +264,10 @@ const text = {
     expenseNote: "Expense Note",
     expenseSaved: "Expense saved. It will show in expense records.",
     invalidExpense: "Choose a date and enter a valid expense amount.",
+    closeDay: "Close Day",
+    reopenDay: "Reopen Day",
+    closedDay: "This day is closed.",
+    editClosedConfirm: "This day is closed. Continue editing?",
     categories: {
       rent: "Rent",
       supplies: "Supplies",
@@ -277,6 +286,7 @@ export default function DailyRecordPage() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [records, setRecords] = useState<DailyRecord[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [closedDates, setClosedDates] = useState<string[]>([]);
   const [recordDataLoaded, setRecordDataLoaded] = useState(false);
   const [date, setDate] = useState(getTodayDate());
   const [note, setNote] = useState("");
@@ -355,6 +365,7 @@ export default function DailyRecordPage() {
       setMenuItems(mergeDailyMenuItems(readStorage<MenuItem[]>(MENU_KEY, [])));
       setRecords(readStorage<DailyRecord[]>(DAILY_RECORDS_KEY, []));
       setExpenses(readStorage<Expense[]>(EXPENSES_KEY, []));
+      setClosedDates(readStorage<string[]>(CLOSED_DATES_KEY, []));
       setRecordDataLoaded(true);
     }, 0);
 
@@ -365,6 +376,7 @@ export default function DailyRecordPage() {
     () => records.find((record) => record.date === date),
     [date, records],
   );
+  const isClosedDate = closedDates.includes(date);
 
   useEffect(() => {
     if (!recordDataLoaded) {
@@ -779,6 +791,10 @@ export default function DailyRecordPage() {
   }
 
   function addOrder() {
+    if (!confirmClosedDateEdit()) {
+      return;
+    }
+
     const employee = employees.find((item) => item.id === employeeId);
     const nextOrders = buildOrdersFromLineDrafts(
       orderNumbers,
@@ -816,6 +832,10 @@ export default function DailyRecordPage() {
   }
 
   function addGiftCardSale() {
+    if (!confirmClosedDateEdit()) {
+      return;
+    }
+
     const amount = toAmount(giftCardSaleAmount);
 
     if (amount <= 0) {
@@ -848,6 +868,10 @@ export default function DailyRecordPage() {
   function addExpense(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (!confirmClosedDateEdit()) {
+      return;
+    }
+
     const numericAmount = toAmount(expenseAmount);
 
     if (!date || numericAmount <= 0) {
@@ -878,6 +902,10 @@ export default function DailyRecordPage() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (!confirmClosedDateEdit()) {
+      return;
+    }
+
     const commissions = [
       ...buildCommissionEntries(orders),
       ...legacyCommissions,
@@ -901,6 +929,19 @@ export default function DailyRecordPage() {
     window.localStorage.setItem(DAILY_RECORDS_KEY, JSON.stringify(nextRecords));
     removeDailyRecordDraft(date);
     window.alert(t.saved);
+  }
+
+  function confirmClosedDateEdit() {
+    return !isClosedDate || window.confirm(t.editClosedConfirm);
+  }
+
+  function toggleClosedDate() {
+    const nextClosedDates = isClosedDate
+      ? closedDates.filter((item) => item !== date)
+      : [...closedDates, date];
+
+    setClosedDates(nextClosedDates);
+    window.localStorage.setItem(CLOSED_DATES_KEY, JSON.stringify(nextClosedDates));
   }
 
   return (
@@ -932,13 +973,31 @@ export default function DailyRecordPage() {
                 isEnglish={language === "en"}
                 onChange={setDate}
               />
-              <Link
-                href="/services"
-                className="shrink-0 rounded-xl border border-gray-300 px-3 py-3 text-center text-sm font-semibold text-gray-700"
-              >
-                {t.menuLink}
-              </Link>
+              <div className="grid shrink-0 grid-cols-2 gap-2">
+                <Link
+                  href="/services"
+                  className="rounded-xl border border-gray-300 px-3 py-3 text-center text-sm font-semibold text-gray-700"
+                >
+                  {t.menuLink}
+                </Link>
+                <button
+                  type="button"
+                  onClick={toggleClosedDate}
+                  className={`rounded-xl border px-3 py-3 text-sm font-semibold ${
+                    isClosedDate
+                      ? "border-amber-300 bg-amber-50 text-amber-800"
+                      : "border-gray-300 text-gray-700"
+                  }`}
+                >
+                  {isClosedDate ? t.reopenDay : t.closeDay}
+                </button>
+              </div>
             </div>
+            {isClosedDate && (
+              <p className="mt-2 text-sm font-semibold text-amber-700">
+                {t.closedDay}
+              </p>
+            )}
           </section>
 
           <section className="rounded-xl border border-gray-200 p-3">
@@ -1578,9 +1637,13 @@ export default function DailyRecordPage() {
             employeeName={selectedEmployee.name}
             orders={selectedEmployeeOrders}
             onEditOrder={openEditOrder}
-            onDeleteOrder={(orderId) =>
-              setOrders((current) => current.filter((item) => item.id !== orderId))
-            }
+            onDeleteOrder={(orderId) => {
+              if (!confirmClosedDateEdit()) {
+                return;
+              }
+
+              setOrders((current) => current.filter((item) => item.id !== orderId));
+            }}
             onClose={() => setShowRevenueModal(false)}
           />
         )}

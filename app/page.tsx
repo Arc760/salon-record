@@ -10,12 +10,50 @@ type DailyRecord = {
   date: string;
   cashSales: number;
   cardSales: number;
-  commissions: { amount: number }[];
+  note?: string;
+  commissions: { employeeName?: string; amount: number }[];
+  orders?: {
+    id: string;
+    employeeName: string;
+    serviceName: string;
+    price: number;
+    commission: number;
+    extras?: { name: string; price: number; commission: number }[];
+    paymentMethod?: string;
+    cashAmount?: number;
+    cardAmount?: number;
+  }[];
+  giftCardSales?: { amount: number; paymentMethod: string }[];
 };
 
 type Expense = {
+  id?: string;
   date: string;
   amount: number;
+  vendor?: string;
+  note?: string;
+  category?: string;
+};
+
+type Employee = {
+  id: string;
+  name: string;
+  active: boolean;
+};
+
+type MenuItem = {
+  id: string;
+  name: string;
+  price: number;
+  commission: number;
+  active: boolean;
+};
+
+type SearchResult = {
+  id: string;
+  title: string;
+  detail: string;
+  href: string;
 };
 
 type ImportPreview = {
@@ -42,6 +80,7 @@ const EXPORT_STORAGE_KEYS = [
   "salon-record-order-draft",
   "salon-record-service-menu",
   "salon-record-weekly-settlements",
+  "salon-record-closed-dates",
 ];
 
 const text = {
@@ -75,6 +114,12 @@ const text = {
     importSettlements: "周结记录",
     importSuccess: "数据已导入，请刷新页面查看。",
     importInvalid: "请选择正确的数据备份CSV文件。",
+    dataCheck: "数据检查",
+    globalSearch: "全局搜索",
+    searchPlaceholder: "搜索员工、日期、项目或备注",
+    searchEmpty: "没有找到相关数据",
+    healthGood: "没有发现明显异常。",
+    healthIssues: "发现异常",
     statusDone: "今天的账目已经记录",
     statusPending: "今天还没有完成记账",
   },
@@ -108,6 +153,12 @@ const text = {
     importSettlements: "Settlements",
     importSuccess: "Data imported. Refresh the page to view it.",
     importInvalid: "Choose a valid backup CSV file.",
+    dataCheck: "Data Check",
+    globalSearch: "Search",
+    searchPlaceholder: "Search employee, date, item, or note",
+    searchEmpty: "No matching data",
+    healthGood: "No obvious issues found.",
+    healthIssues: "Issues Found",
     statusDone: "Today's record is saved",
     statusPending: "Today's report is not completed",
   },
@@ -121,6 +172,9 @@ export default function Home() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [greeting, setGreeting] = useState("");
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
+  const [healthIssues, setHealthIssues] = useState<string[] | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchText, setSearchText] = useState("");
   const today = getTodayDate();
   const formattedDate = useMemo(
     () =>
@@ -243,6 +297,23 @@ export default function Home() {
           </p>
         </div>
 
+        <section className="mb-3 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setHealthIssues(buildHealthIssues())}
+            className="min-h-12 rounded-xl border border-gray-300 px-3 text-sm font-semibold text-gray-800"
+          >
+            {t.dataCheck}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowSearch(true)}
+            className="min-h-12 rounded-xl border border-gray-300 px-3 text-sm font-semibold text-gray-800"
+          >
+            {t.globalSearch}
+          </button>
+        </section>
+
         <section className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <ActionButton href="/daily-record" label={t.recordToday} primary />
           <ActionButton href="/expenses" label={t.addExpense} />
@@ -259,8 +330,99 @@ export default function Home() {
           }}
         />
       )}
+      {healthIssues && (
+        <SimpleModal title={t.dataCheck} onClose={() => setHealthIssues(null)}>
+          {healthIssues.length === 0 ? (
+            <p className="text-sm text-gray-600">{t.healthGood}</p>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-red-600">
+                {t.healthIssues}: {healthIssues.length}
+              </p>
+              {healthIssues.map((issue) => (
+                <div
+                  key={issue}
+                  className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700"
+                >
+                  {issue}
+                </div>
+              ))}
+            </div>
+          )}
+        </SimpleModal>
+      )}
+      {showSearch && (
+        <SimpleModal title={t.globalSearch} onClose={() => setShowSearch(false)}>
+          <input
+            value={searchText}
+            onChange={(event) => setSearchText(event.target.value)}
+            placeholder={t.searchPlaceholder}
+            className="mb-3 min-h-12 w-full rounded-xl border border-gray-300 px-3 text-base text-gray-900 outline-none focus:border-gray-900"
+          />
+          <SearchResults searchText={searchText} emptyText={t.searchEmpty} />
+        </SimpleModal>
+      )}
       <BottomNav />
     </main>
+  );
+}
+
+function SimpleModal({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <AppModal onClose={onClose} contentClassName="flex flex-col">
+      <div className="flex items-center justify-between border-b border-gray-200 p-4">
+        <h2 className="text-lg font-bold text-gray-900">{title}</h2>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-xl border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700"
+        >
+          Close
+        </button>
+      </div>
+      <div className="overflow-y-auto p-4">{children}</div>
+    </AppModal>
+  );
+}
+
+function SearchResults({
+  searchText,
+  emptyText,
+}: {
+  searchText: string;
+  emptyText: string;
+}) {
+  const results = buildSearchResults(searchText);
+
+  if (!searchText.trim()) {
+    return null;
+  }
+
+  if (results.length === 0) {
+    return <p className="text-sm text-gray-500">{emptyText}</p>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {results.map((result) => (
+        <Link
+          key={result.id}
+          href={result.href}
+          className="block rounded-xl border border-gray-200 p-3"
+        >
+          <p className="font-semibold text-gray-900">{result.title}</p>
+          <p className="mt-1 text-sm text-gray-500">{result.detail}</p>
+        </Link>
+      ))}
+    </div>
   );
 }
 
@@ -354,6 +516,157 @@ function readStorage<T>(key: string, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+function buildHealthIssues() {
+  const issues: string[] = [];
+  const records = readStorage<DailyRecord[]>(DAILY_RECORDS_KEY, []);
+  const employees = readStorage<Employee[]>("salon-record-employees", []);
+  const menuItems = readStorage<MenuItem[]>("salon-record-service-menu", []);
+  const expenses = readStorage<Expense[]>(EXPENSES_KEY, []);
+
+  if (employees.length === 0) {
+    issues.push("还没有员工资料。");
+  }
+
+  if (menuItems.length === 0) {
+    issues.push("还没有菜单项目。");
+  }
+
+  records.forEach((record) => {
+    (record.orders ?? []).forEach((order, index) => {
+      const label = `${record.date} #${index + 1}`;
+      const paidAmount =
+        (order.paymentMethod ?? "card") === "split"
+          ? (order.cashAmount ?? 0) + (order.cardAmount ?? 0)
+          : null;
+
+      if (!order.employeeName) {
+        issues.push(`${label} 订单没有员工。`);
+      }
+
+      if ((order.price ?? 0) <= 0 && (order.extras ?? []).length === 0) {
+        issues.push(`${label} 订单没有价格。`);
+      }
+
+      if (getOrderCommissionForHealth(order) <= 0) {
+        issues.push(`${label} 提成为 0。`);
+      }
+
+      if (paidAmount !== null && paidAmount <= 0) {
+        issues.push(`${label} 拆分付款金额为 0。`);
+      }
+    });
+
+    if ((record.cashSales ?? 0) < 0 || (record.cardSales ?? 0) < 0) {
+      issues.push(`${record.date} 收入金额异常。`);
+    }
+  });
+
+  expenses.forEach((expense) => {
+    if ((expense.amount ?? 0) <= 0) {
+      issues.push(`${expense.date} 有支出金额异常。`);
+    }
+  });
+
+  return issues;
+}
+
+function buildSearchResults(searchText: string): SearchResult[] {
+  const query = searchText.trim().toLowerCase();
+
+  if (!query) {
+    return [];
+  }
+
+  const records = readStorage<DailyRecord[]>(DAILY_RECORDS_KEY, []);
+  const employees = readStorage<Employee[]>("salon-record-employees", []);
+  const menuItems = readStorage<MenuItem[]>("salon-record-service-menu", []);
+  const expenses = readStorage<Expense[]>(EXPENSES_KEY, []);
+  const results: SearchResult[] = [];
+
+  employees.forEach((employee) => {
+    if (matchesQuery([employee.name, employee.active ? "active" : "inactive"], query)) {
+      results.push({
+        id: `employee-${employee.id}`,
+        title: employee.name,
+        detail: "Employee",
+        href: "/employees",
+      });
+    }
+  });
+
+  menuItems.forEach((item) => {
+    if (matchesQuery([item.name, item.id], query)) {
+      results.push({
+        id: `menu-${item.id}`,
+        title: item.name,
+        detail: `Menu · ${formatCurrency(item.price)}`,
+        href: "/services",
+      });
+    }
+  });
+
+  records.forEach((record) => {
+    if (matchesQuery([record.date, record.note ?? ""], query)) {
+      results.push({
+        id: `record-${record.date}`,
+        title: record.date,
+        detail: "Daily record",
+        href: "/reports",
+      });
+    }
+
+    (record.orders ?? []).forEach((order) => {
+      if (
+        matchesQuery(
+          [
+            record.date,
+            order.employeeName,
+            order.serviceName,
+            ...(order.extras ?? []).map((extra) => extra.name),
+          ],
+          query,
+        )
+      ) {
+        results.push({
+          id: `order-${record.date}-${order.id}`,
+          title: `${record.date} · ${order.employeeName}`,
+          detail: order.serviceName,
+          href: "/reports",
+        });
+      }
+    });
+  });
+
+  expenses.forEach((expense) => {
+    if (
+      matchesQuery(
+        [expense.date, expense.vendor ?? "", expense.note ?? "", expense.category ?? ""],
+        query,
+      )
+    ) {
+      results.push({
+        id: `expense-${expense.id ?? expense.date}-${expense.amount}`,
+        title: `${expense.date} · ${formatCurrency(expense.amount)}`,
+        detail: expense.vendor || expense.note || "Expense",
+        href: "/expenses",
+      });
+    }
+  });
+
+  return results.slice(0, 30);
+}
+
+function matchesQuery(values: string[], query: string) {
+  return values.some((value) => value.toLowerCase().includes(query));
+}
+
+function getOrderCommissionForHealth(order: NonNullable<DailyRecord["orders"]>[number]) {
+  return (
+    (order.commission ?? 0) +
+    (order.extras ?? []).reduce((sum, extra) => sum + (extra.commission ?? 0), 0)
+  );
 }
 
 function exportSalonData() {
