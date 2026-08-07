@@ -19,6 +19,15 @@ type Expense = {
 
 const DAILY_RECORDS_KEY = "salon-record-daily-records";
 const EXPENSES_KEY = "salon-record-expenses";
+const EXPORT_STORAGE_KEYS = [
+  "salon-record-daily-records",
+  "salon-record-daily-record-drafts",
+  "salon-record-employees",
+  "salon-record-expenses",
+  "salon-record-language",
+  "salon-record-order-draft",
+  "salon-record-service-menu",
+];
 
 const text = {
   zh: {
@@ -37,6 +46,7 @@ const text = {
     employees: "员工管理",
     services: "菜单",
     reports: "查看报表",
+    exportData: "导出数据",
     statusDone: "今天的账目已经记录",
     statusPending: "今天还没有完成记账",
   },
@@ -56,6 +66,7 @@ const text = {
     employees: "Employees",
     services: "Menu",
     reports: "Reports",
+    exportData: "Export Data",
     statusDone: "Today's record is saved",
     statusPending: "Today's report is not completed",
   },
@@ -121,7 +132,16 @@ export default function Home() {
             <h1 className="text-2xl font-bold text-gray-900">{t.appName}</h1>
             <p className="mt-1 text-sm text-gray-500">{t.subtitle}</p>
           </div>
-          <LanguageSwitcher language={language} setLanguage={setLanguage} />
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={exportSalonData}
+              className="min-h-10 rounded-xl border border-gray-300 px-3 text-sm font-semibold text-gray-700"
+            >
+              {t.exportData}
+            </button>
+            <LanguageSwitcher language={language} setLanguage={setLanguage} />
+          </div>
         </header>
 
         <section className="mb-3">
@@ -217,6 +237,49 @@ function readStorage<T>(key: string, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+function exportSalonData() {
+  const exportedAt = new Date().toISOString();
+  const data = EXPORT_STORAGE_KEYS.reduce<Record<string, unknown>>((result, key) => {
+    const value = window.localStorage.getItem(key);
+
+    if (!value) {
+      result[key] = null;
+      return result;
+    }
+
+    try {
+      result[key] = JSON.parse(value);
+    } catch {
+      result[key] = value;
+    }
+
+    return result;
+  }, {});
+  const blob = new Blob(
+    [
+      JSON.stringify(
+        {
+          app: "salon-record",
+          exportedAt,
+          data,
+        },
+        null,
+        2,
+      ),
+    ],
+    { type: "application/json" },
+  );
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = `salon-record-backup-${getTodayDate()}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
 }
 
 function getTodayDate() {
