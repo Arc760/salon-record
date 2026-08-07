@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { BottomNav } from "./BottomNav";
 import { LanguageSwitcher, useLanguage } from "./useLanguage";
 
@@ -46,7 +46,10 @@ const text = {
     employees: "员工管理",
     services: "菜单",
     reports: "查看报表",
-    exportData: "导出数据",
+    exportData: "导出CSV",
+    importData: "导入CSV",
+    importSuccess: "数据已导入，请刷新页面查看。",
+    importInvalid: "请选择正确的数据备份CSV文件。",
     statusDone: "今天的账目已经记录",
     statusPending: "今天还没有完成记账",
   },
@@ -66,7 +69,10 @@ const text = {
     employees: "Employees",
     services: "Menu",
     reports: "Reports",
-    exportData: "Export Data",
+    exportData: "Export CSV",
+    importData: "Import CSV",
+    importSuccess: "Data imported. Refresh the page to view it.",
+    importInvalid: "Choose a valid backup CSV file.",
     statusDone: "Today's record is saved",
     statusPending: "Today's report is not completed",
   },
@@ -75,6 +81,7 @@ const text = {
 export default function Home() {
   const { language, setLanguage, locale } = useLanguage();
   const t = text[language];
+  const importInputRef = useRef<HTMLInputElement>(null);
   const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [greeting, setGreeting] = useState("");
@@ -140,6 +147,20 @@ export default function Home() {
             >
               {t.exportData}
             </button>
+            <button
+              type="button"
+              onClick={() => importInputRef.current?.click()}
+              className="min-h-10 rounded-xl border border-gray-300 px-3 text-sm font-semibold text-gray-700"
+            >
+              {t.importData}
+            </button>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              onChange={(event) => importSalonData(event, t)}
+              className="hidden"
+            />
             <LanguageSwitcher language={language} setLanguage={setLanguage} />
           </div>
         </header>
@@ -241,45 +262,136 @@ function readStorage<T>(key: string, fallback: T): T {
 
 function exportSalonData() {
   const exportedAt = new Date().toISOString();
-  const data = EXPORT_STORAGE_KEYS.reduce<Record<string, unknown>>((result, key) => {
-    const value = window.localStorage.getItem(key);
-
-    if (!value) {
-      result[key] = null;
-      return result;
-    }
-
-    try {
-      result[key] = JSON.parse(value);
-    } catch {
-      result[key] = value;
-    }
-
-    return result;
-  }, {});
+  const rows = [
+    ["app", "exportedAt", "key", "value"],
+    ...EXPORT_STORAGE_KEYS.map((key) => [
+      "salon-record",
+      exportedAt,
+      key,
+      window.localStorage.getItem(key) ?? "",
+    ]),
+  ];
   const blob = new Blob(
-    [
-      JSON.stringify(
-        {
-          app: "salon-record",
-          exportedAt,
-          data,
-        },
-        null,
-        2,
-      ),
-    ],
-    { type: "application/json" },
+    [rows.map((row) => row.map(escapeCsvCell).join(",")).join("\n")],
+    { type: "text/csv;charset=utf-8" },
   );
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement("a");
 
   link.href = url;
-  link.download = `salon-record-backup-${getTodayDate()}.json`;
+  link.download = `salon-record-backup-${getTodayDate()}.csv`;
   document.body.appendChild(link);
   link.click();
   link.remove();
   window.URL.revokeObjectURL(url);
+}
+
+function importSalonData(
+  event: ChangeEvent<HTMLInputElement>,
+  t: (typeof text)["zh"],
+) {
+  const file = event.target.files?.[0];
+  event.target.value = "";
+
+  if (!file) {
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = () => {
+    try {
+      const csvText = String(reader.result ?? "");
+      const rows = parseCsv(csvText);
+      const [header, ...dataRows] = rows;
+
+      if (
+        !header ||
+        header[0] !== "app" ||
+        header[1] !== "exportedAt" ||
+        header[2] !== "key" ||
+        header[3] !== "value"
+      ) {
+        window.alert(t.importInvalid);
+        return;
+      }
+
+      dataRows.forEach((row) => {
+        const [app, , key, value] = row;
+
+        if (app !== "salon-record" || !EXPORT_STORAGE_KEYS.includes(key)) {
+          return;
+        }
+
+        if (value === "") {
+          window.localStorage.removeItem(key);
+        } else {
+          window.localStorage.setItem(key, value);
+        }
+      });
+
+      window.alert(t.importSuccess);
+    } catch {
+      window.alert(t.importInvalid);
+    }
+  };
+
+  reader.onerror = () => window.alert(t.importInvalid);
+  reader.readAsText(file);
+}
+
+function escapeCsvCell(value: string) {
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+function parseCsv(csvText: string) {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < csvText.length; index += 1) {
+    const character = csvText[index];
+    const nextCharacter = csvText[index + 1];
+
+    if (character === '"' && inQuotes && nextCharacter === '"') {
+      cell += '"';
+      index += 1;
+      continue;
+    }
+
+    if (character === '"') {
+      inQuotes = !inQuotes;
+      continue;
+    }
+
+    if (character === "," && !inQuotes) {
+      row.push(cell);
+      cell = "";
+      continue;
+    }
+
+    if ((character === "\n" || character === "\r") && !inQuotes) {
+      if (character === "\r" && nextCharacter === "\n") {
+        index += 1;
+      }
+
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+      continue;
+    }
+
+    cell += character;
+  }
+
+  if (cell || row.length > 0) {
+    row.push(cell);
+    rows.push(row);
+  }
+
+  return rows;
 }
 
 function getTodayDate() {
