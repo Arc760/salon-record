@@ -9,12 +9,14 @@ const text = {
     home: "首页",
     menu: "菜单",
     employees: "员工",
+    weeklyPay: "周结",
     reports: "报表",
   },
   en: {
     home: "Home",
     menu: "Menu",
     employees: "Employees",
+    weeklyPay: "Payroll",
     reports: "Reports",
   },
 };
@@ -23,6 +25,7 @@ const navItems = [
   { href: "/", key: "home" as const },
   { href: "/services", key: "menu" as const },
   { href: "/employees", key: "employees" as const },
+  { href: "/weekly-pay", key: "weeklyPay" as const },
   { href: "/reports", key: "reports" as const },
 ];
 
@@ -33,7 +36,7 @@ export function BottomNav() {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 px-3 pb-[env(safe-area-inset-bottom)] pt-2 shadow-[0_-8px_24px_rgba(0,0,0,0.08)]">
-      <div className="mx-auto grid w-full max-w-5xl grid-cols-4 gap-2">
+      <div className="mx-auto grid w-full max-w-5xl grid-cols-5 gap-2">
         {navItems.map((item) => {
           const active =
             item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
@@ -42,7 +45,7 @@ export function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex min-h-11 items-center justify-center rounded-xl px-2 text-xs font-semibold ${
+              className={`flex min-h-11 items-center justify-center rounded-xl px-1 text-xs font-semibold ${
                 active ? "bg-gray-900 text-white" : "text-gray-600"
               }`}
             >

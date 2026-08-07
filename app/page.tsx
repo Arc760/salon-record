@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { AppModal } from "./AppModal";
 import { BottomNav } from "./BottomNav";
 import { LanguageSwitcher, useLanguage } from "./useLanguage";
 
@@ -17,6 +18,19 @@ type Expense = {
   amount: number;
 };
 
+type ImportPreview = {
+  rows: string[][];
+  exportedAt: string;
+  summary: {
+    employees: number;
+    records: number;
+    expenses: number;
+    menuItems: number;
+    drafts: number;
+    settlements: number;
+  };
+};
+
 const DAILY_RECORDS_KEY = "salon-record-daily-records";
 const EXPENSES_KEY = "salon-record-expenses";
 const EXPORT_STORAGE_KEYS = [
@@ -27,6 +41,7 @@ const EXPORT_STORAGE_KEYS = [
   "salon-record-language",
   "salon-record-order-draft",
   "salon-record-service-menu",
+  "salon-record-weekly-settlements",
 ];
 
 const text = {
@@ -48,6 +63,16 @@ const text = {
     reports: "查看报表",
     exportData: "导出CSV",
     importData: "导入CSV",
+    importPreview: "导入预览",
+    importConfirm: "确认导入",
+    importCancel: "取消",
+    importBackupNotice: "导入前会自动先导出当前数据备份。",
+    importEmployees: "员工",
+    importRecords: "账目",
+    importExpenses: "支出",
+    importMenuItems: "菜单项目",
+    importDrafts: "草稿",
+    importSettlements: "周结记录",
     importSuccess: "数据已导入，请刷新页面查看。",
     importInvalid: "请选择正确的数据备份CSV文件。",
     statusDone: "今天的账目已经记录",
@@ -71,6 +96,16 @@ const text = {
     reports: "Reports",
     exportData: "Export CSV",
     importData: "Import CSV",
+    importPreview: "Import Preview",
+    importConfirm: "Confirm Import",
+    importCancel: "Cancel",
+    importBackupNotice: "The current data will be exported before importing.",
+    importEmployees: "Employees",
+    importRecords: "Records",
+    importExpenses: "Expenses",
+    importMenuItems: "Menu Items",
+    importDrafts: "Drafts",
+    importSettlements: "Settlements",
     importSuccess: "Data imported. Refresh the page to view it.",
     importInvalid: "Choose a valid backup CSV file.",
     statusDone: "Today's record is saved",
@@ -85,6 +120,7 @@ export default function Home() {
   const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [greeting, setGreeting] = useState("");
+  const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
   const today = getTodayDate();
   const formattedDate = useMemo(
     () =>
@@ -158,7 +194,7 @@ export default function Home() {
               ref={importInputRef}
               type="file"
               accept=".csv,text/csv"
-              onChange={(event) => importSalonData(event, t)}
+              onChange={(event) => previewSalonDataImport(event, t, setImportPreview)}
               className="hidden"
             />
             <LanguageSwitcher language={language} setLanguage={setLanguage} />
@@ -212,8 +248,68 @@ export default function Home() {
           <ActionButton href="/expenses" label={t.addExpense} />
         </section>
       </div>
+      {importPreview && (
+        <ImportPreviewModal
+          preview={importPreview}
+          t={t}
+          onCancel={() => setImportPreview(null)}
+          onConfirm={() => {
+            importSalonData(importPreview.rows, t);
+            setImportPreview(null);
+          }}
+        />
+      )}
       <BottomNav />
     </main>
+  );
+}
+
+function ImportPreviewModal({
+  preview,
+  t,
+  onCancel,
+  onConfirm,
+}: {
+  preview: ImportPreview;
+  t: (typeof text)["zh"];
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <AppModal onClose={onCancel} contentClassName="flex flex-col">
+      <div className="border-b border-gray-200 p-4">
+        <h2 className="text-lg font-bold text-gray-900">{t.importPreview}</h2>
+        <p className="mt-1 text-sm text-gray-500">{preview.exportedAt}</p>
+        <p className="mt-2 text-sm text-amber-700">{t.importBackupNotice}</p>
+      </div>
+      <div className="grid grid-cols-2 gap-2 p-4">
+        <SummaryCard title={t.importEmployees} value={String(preview.summary.employees)} />
+        <SummaryCard title={t.importRecords} value={String(preview.summary.records)} />
+        <SummaryCard title={t.importExpenses} value={String(preview.summary.expenses)} />
+        <SummaryCard title={t.importMenuItems} value={String(preview.summary.menuItems)} />
+        <SummaryCard title={t.importDrafts} value={String(preview.summary.drafts)} />
+        <SummaryCard
+          title={t.importSettlements}
+          value={String(preview.summary.settlements)}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-2 border-t border-gray-200 p-4">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="min-h-12 rounded-xl border border-gray-300 px-4 text-base font-semibold text-gray-700"
+        >
+          {t.importCancel}
+        </button>
+        <button
+          type="button"
+          onClick={onConfirm}
+          className="min-h-12 rounded-xl bg-gray-900 px-4 text-base font-semibold text-white"
+        >
+          {t.importConfirm}
+        </button>
+      </div>
+    </AppModal>
   );
 }
 
@@ -261,6 +357,10 @@ function readStorage<T>(key: string, fallback: T): T {
 }
 
 function exportSalonData() {
+  downloadSalonCsv(`salon-record-backup-${getTodayDate()}.csv`);
+}
+
+function downloadSalonCsv(fileName: string) {
   const exportedAt = new Date().toISOString();
   const rows = [
     ["app", "exportedAt", "key", "value"],
@@ -279,16 +379,17 @@ function exportSalonData() {
   const link = document.createElement("a");
 
   link.href = url;
-  link.download = `salon-record-backup-${getTodayDate()}.csv`;
+  link.download = fileName;
   document.body.appendChild(link);
   link.click();
   link.remove();
   window.URL.revokeObjectURL(url);
 }
 
-function importSalonData(
+function previewSalonDataImport(
   event: ChangeEvent<HTMLInputElement>,
   t: (typeof text)["zh"],
+  setImportPreview: (preview: ImportPreview | null) => void,
 ) {
   const file = event.target.files?.[0];
   event.target.value = "";
@@ -316,21 +417,11 @@ function importSalonData(
         return;
       }
 
-      dataRows.forEach((row) => {
-        const [app, , key, value] = row;
-
-        if (app !== "salon-record" || !EXPORT_STORAGE_KEYS.includes(key)) {
-          return;
-        }
-
-        if (value === "") {
-          window.localStorage.removeItem(key);
-        } else {
-          window.localStorage.setItem(key, value);
-        }
+      setImportPreview({
+        rows: dataRows,
+        exportedAt: dataRows[0]?.[1] ?? "",
+        summary: buildImportSummary(dataRows),
       });
-
-      window.alert(t.importSuccess);
     } catch {
       window.alert(t.importInvalid);
     }
@@ -338,6 +429,75 @@ function importSalonData(
 
   reader.onerror = () => window.alert(t.importInvalid);
   reader.readAsText(file);
+}
+
+function importSalonData(rows: string[][], t: (typeof text)["zh"]) {
+  downloadSalonCsv(`salon-record-before-import-${getTodayDate()}.csv`);
+
+  rows.forEach((row) => {
+    const [app, , key, value] = row;
+
+    if (app !== "salon-record" || !EXPORT_STORAGE_KEYS.includes(key)) {
+      return;
+    }
+
+    if (value === "") {
+      window.localStorage.removeItem(key);
+    } else {
+      window.localStorage.setItem(key, value);
+    }
+  });
+
+  window.alert(t.importSuccess);
+}
+
+function buildImportSummary(rows: string[][]): ImportPreview["summary"] {
+  const data = new Map<string, string>();
+
+  rows.forEach((row) => {
+    const [app, , key, value] = row;
+
+    if (app === "salon-record" && EXPORT_STORAGE_KEYS.includes(key)) {
+      data.set(key, value);
+    }
+  });
+
+  return {
+    employees: getImportedItemCount(data.get("salon-record-employees")),
+    records: getImportedItemCount(data.get("salon-record-daily-records")),
+    expenses: getImportedItemCount(data.get("salon-record-expenses")),
+    menuItems: getImportedItemCount(data.get("salon-record-service-menu")),
+    drafts: getImportedObjectCount(data.get("salon-record-daily-record-drafts")),
+    settlements: getImportedItemCount(data.get("salon-record-weekly-settlements")),
+  };
+}
+
+function getImportedItemCount(value: string | undefined) {
+  if (!value) {
+    return 0;
+  }
+
+  try {
+    const parsedValue = JSON.parse(value);
+    return Array.isArray(parsedValue) ? parsedValue.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function getImportedObjectCount(value: string | undefined) {
+  if (!value) {
+    return 0;
+  }
+
+  try {
+    const parsedValue = JSON.parse(value);
+    return parsedValue && typeof parsedValue === "object"
+      ? Object.keys(parsedValue).length
+      : 0;
+  } catch {
+    return 0;
+  }
 }
 
 function escapeCsvCell(value: string) {
